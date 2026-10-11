@@ -21,12 +21,15 @@
       </div>
     </div>
     <div class="header-actions">
-      <!-- Gruppo Caricamento Cartella / File -->
-      <div style="display: flex; align-items: center; gap: 0.4rem;">
+      <!-- Gruppo Caricamento Cartella / File / Repo -->
+      <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
         <input type="file" id="folder-input" webkitdirectory directory multiple style="display: none;" onchange="handleFolderSelect(this.files)">
         <input type="file" id="files-input" multiple accept=".md" style="display: none;" onchange="handleFolderSelect(this.files)">
-        <button class="btn btn-primary" style="background-color: #2563eb;" onclick="document.getElementById('folder-input').click()" title="Seleziona la cartella schede_esercizi/">
-          📁 Carica Cartella Schede
+        <button class="btn btn-primary" id="btn-import-repo" style="background-color: #0d9488;" onclick="loadFromRepository()" title="Importa automaticamente le schede dal repository online (schede_esercizi/)">
+          ⚡ Carica dal Sito
+        </button>
+        <button class="btn btn-secondary" onclick="document.getElementById('folder-input').click()" title="Seleziona la cartella schede_esercizi/ dal computer">
+          📁 Carica da Cartella
         </button>
       </div>
 
@@ -74,19 +77,22 @@
     <main class="main-content">
       
       <!-- Empty State & Drag & Drop Dropzone -->
-      <div id="dropzone-banner" class="dropzone-banner" onclick="document.getElementById('folder-input').click()">
+      <div id="dropzone-banner" class="dropzone-banner">
         <div style="font-size: 2.4rem; margin-bottom: 0.5rem;">📂</div>
         <h3 style="font-size: 1.2rem; font-weight: 700; color: #1e293b; margin-bottom: 0.35rem;">
-          Trascina qui la cartella <code>schede_esercizi/</code>
+          Inizia a Generare le Schede Didattiche
         </h3>
         <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 1.25rem;">
-          oppure fai clic su questo riquadro per selezionare la cartella dal tuo computer
+          Importa le unità didattiche direttamente dal sito oppure carica la cartella locale
         </p>
-        <div style="display: flex; justify-content: center; gap: 0.75rem;">
-          <button type="button" class="btn btn-primary" onclick="event.stopPropagation(); document.getElementById('folder-input').click()">
+        <div style="display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap;">
+          <button type="button" class="btn btn-primary" style="background-color: #0d9488;" onclick="loadFromRepository()">
+            ⚡ Importa dal Sito / Repo
+          </button>
+          <button type="button" class="btn btn-primary" style="background-color: #2563eb;" onclick="document.getElementById('folder-input').click()">
             📁 Scegli Cartella Schede
           </button>
-          <button type="button" class="btn btn-secondary" onclick="event.stopPropagation(); document.getElementById('files-input').click()">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('files-input').click()">
             📄 Scegli singoli file .md
           </button>
         </div>

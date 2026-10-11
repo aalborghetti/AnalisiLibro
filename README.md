@@ -141,13 +141,13 @@ Fornisci all'agente AI (come Antigravity / Gemini) il prompt già pronto contenu
 L'applicazione web [`generatore_schede.html`](file:///c:/Ai/projects/AnalisiLibro/generatore_schede.html) è un'applicazione **100% client-side**: non richiede server, database né passaggi intermedi di compilazione.
 
 Può essere utilizzata in due modalità:
-1. **In locale:** Facendo doppio clic su `generatore_schede.html` per aprirlo direttamente nel tuo browser predefinito.
-2. **Online su GitHub Pages:** Pubblicando il repository con GitHub Pages abilitato dalla radice (`main` branch / root). L'applicazione sarà accessibile via web da qualsiasi dispositivo (computer scolastico, tablet, LIM).
+1. **Online (Netlify / Web):** Pubblicando il repository (es. su Netlify). Aprendo il sito da browser desktop o dispositivo mobile (smartphone, tablet, LIM), le schede didattiche vengono importate **automaticamente all'avvio** dalla cartella `schede_esercizi/` del repository tramite il pulsante **`⚡ Carica dal Sito`**.
+2. **In locale:** Facendo doppio clic su `generatore_schede.html` per aprirlo offline nel tuo browser predefinito e caricando la cartella tramite **`📁 Carica da Cartella`** o Drag & Drop.
 
 #### Come caricare le schede:
-- Fai clic sul pulsante **📁 Carica Cartella Schede** nell'intestazione e seleziona la cartella `schede_esercizi/`.
-- In alternativa, **trascina direttamente la cartella `schede_esercizi/`** (o singoli file `.md`) nel riquadro centrale della pagina.
-- L'applicazione rileva all'istante `dati_libro.md`, imposta titolo e autore del romanzo, carica tutte le unità didattiche e memorizza lo stato in locale (i dati rimangono disponibili anche se aggiorni la pagina).
+- **Automatico Online (Netlify/Web):** Clicca su **`⚡ Carica dal Sito`** (o lascia che l'app le importi automaticamente all'apertura se non ci sono dati salvati).
+- **Da Cartella Locale:** Fai clic sul pulsante **`📁 Carica da Cartella`** e seleziona `schede_esercizi/`, oppure trascina i file `.md` direttamente nella finestra.
+- L'applicazione rileva all'istante `dati_libro.md`, imposta titolo e autore del romanzo, carica tutte le unità didattiche e memorizza lo stato in locale (`localStorage`).
 
 #### Caratteristiche dell'Interfaccia Web:
 1. **Scorrimento verticale indipendente:** La barra laterale sinistra (elenco delle unità didattiche) e l'area centrale di lavoro (esercizi dell'unità selezionata) scorrono verticalmente in modo completamente indipendente l'una dall'altra con barre di scorrimento sottili ed eleganti. La barra dei comandi di selezione rimane sempre visibile e ancorata in alto (*sticky*).

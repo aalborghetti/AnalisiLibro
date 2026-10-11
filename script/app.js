@@ -320,7 +320,116 @@ function showEmptyState() {
   document.getElementById('blocks-count-badge').textContent = "0 Unità";
 }
 
-// 3. Gestione File e Cartelle (File API & FileReader)
+// Notifiche Toast
+function showNotificationToast(msg) {
+  let toast = document.getElementById('app-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'app-toast';
+    toast.className = 'app-toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => {
+    toast.classList.remove('show');
+  }, 3500);
+}
+
+// 3. Caricamento Automatico dal Repository / Sito Web (schede_esercizi/)
+async function loadFromRepository(silent = false) {
+  const btn = document.getElementById('btn-import-repo');
+  const originalText = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.innerHTML = '⏳ Caricamento...';
+    btn.disabled = true;
+  }
+
+  try {
+    let fileList = [];
+
+    // 1. Prova a recuperare la lista dei file da manifest.json
+    try {
+      const manifestRes = await fetch('schede_esercizi/manifest.json');
+      if (manifestRes.ok) {
+        const manifestData = await manifestRes.json();
+        if (Array.isArray(manifestData)) {
+          fileList = manifestData;
+        } else if (manifestData.files && Array.isArray(manifestData.files)) {
+          fileList = manifestData.files;
+        }
+      }
+    } catch (e) {
+      console.warn("Manifest non disponibile o non valido, fallback su probing automatico:", e);
+    }
+
+    // 2. Se manifest non trovato, fallback su probing automatico
+    if (!fileList || fileList.length === 0) {
+      fileList = ['dati_libro.md'];
+      for (let i = 1; i <= 30; i++) {
+        const numStr = String(i).padStart(2, '0');
+        fileList.push(`blocco_${numStr}_esercizi.md`);
+      }
+    }
+
+    // 3. Scarica i file presenti in parallelo
+    const worksheets = [];
+    const fetchPromises = fileList.map(async (filename) => {
+      try {
+        const res = await fetch(`schede_esercizi/${filename}`);
+        if (res.ok) {
+          const text = await res.text();
+          return { filename, markdown: text };
+        }
+      } catch (err) {
+        // Ignora file inesistenti durante il probing
+      }
+      return null;
+    });
+
+    const results = await Promise.all(fetchPromises);
+    results.forEach(item => {
+      if (item && item.markdown && item.markdown.trim().length > 0) {
+        worksheets.push(item);
+      }
+    });
+
+    if (worksheets.length === 0) {
+      throw new Error("Nessun file trovato nella cartella schede_esercizi/");
+    }
+
+    worksheets.sort((a, b) => a.filename.localeCompare(b.filename));
+    loadRawWorksheets(worksheets);
+
+    try {
+      localStorage.setItem('ANALISI_LIBRO_LAST_BOOK', JSON.stringify(worksheets));
+    } catch (err) {
+      console.warn("Storage quota superata o disattivata", err);
+    }
+
+    if (!silent) {
+      const count = BLOCKS_DATA.length;
+      showNotificationToast(`✅ Caricate ${count} unità didattiche dal sito!`);
+    }
+
+  } catch (error) {
+    console.error("Errore caricamento da repository:", error);
+    if (!silent) {
+      if (window.location.protocol === 'file:') {
+        alert("⚠️ Modalità File Locale (file://)\n\nI browser bloccano le chiamate di rete verso file locali per motivi di sicurezza.\n\n👉 In locale, usa il pulsante '📁 Carica da Cartella' o trascina la cartella schede_esercizi/.\n\n🌐 L'importazione automatica dal sito sarà attiva non appena pubblicherai il progetto su Netlify o tramite un server web.");
+      } else {
+        alert("⚠️ Impossibile scaricare le schede dal server. Verifica che la cartella 'schede_esercizi/' sia presente e accessibile.");
+      }
+    }
+  } finally {
+    if (btn) {
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+    }
+  }
+}
+
+// 4. Gestione File e Cartelle Locali (File API & FileReader)
 function handleFolderSelect(fileList) {
   if (!fileList || fileList.length === 0) return;
   const files = Array.from(fileList).filter(f => f.name.toLowerCase().endsWith('.md'));
@@ -674,6 +783,12 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   } catch (err) {
     console.warn("Storage non accessibile", err);
+  }
+
+  // Se aperto online su server (Netlify, GitHub Pages, o server locale), importa automaticamente in silenzio
+  if (window.location.protocol.startsWith('http')) {
+    loadFromRepository(true);
+    return;
   }
 
   showEmptyState();
