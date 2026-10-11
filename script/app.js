@@ -340,19 +340,12 @@ function showNotificationToast(msg) {
   }, 3500);
 }
 
-// 3. Caricamento Automatico dal Repository / Sito Web (schede_esercizi/)
-async function loadFromRepository(silent = false) {
-  const btn = document.getElementById('btn-import-repo');
-  const originalText = btn ? btn.innerHTML : '';
-  if (btn) {
-    btn.innerHTML = '⏳ Caricamento...';
-    btn.disabled = true;
-  }
-
+// 3. Caricamento Silenzioso all'Avvio (schede_esercizi/)
+async function tryAutoLoadFromServer() {
   try {
     let fileList = [];
 
-    // 1. Prova a recuperare la lista dei file da manifest.json
+    // Prova prima a recuperare la lista dei file da manifest.json
     try {
       const manifestRes = await fetch('schede_esercizi/manifest.json');
       if (manifestRes.ok) {
@@ -363,74 +356,44 @@ async function loadFromRepository(silent = false) {
           fileList = manifestData.files;
         }
       }
-    } catch (e) {
-      console.warn("Manifest non disponibile o non valido, fallback su probing automatico:", e);
-    }
+    } catch (_) {}
 
-    // 2. Se manifest non trovato, fallback su probing automatico
+    // Fallback su probing automatico
     if (!fileList || fileList.length === 0) {
       fileList = ['dati_libro.md'];
       for (let i = 1; i <= 30; i++) {
-        const numStr = String(i).padStart(2, '0');
-        fileList.push(`blocco_${numStr}_esercizi.md`);
+        fileList.push(`blocco_${String(i).padStart(2, '0')}_esercizi.md`);
       }
     }
 
-    // 3. Scarica i file presenti in parallelo
-    const worksheets = [];
+    // Scarica i file presenti in parallelo
     const fetchPromises = fileList.map(async (filename) => {
       try {
         const res = await fetch(`schede_esercizi/${filename}`);
         if (res.ok) {
           const text = await res.text();
-          return { filename, markdown: text };
+          if (text && text.trim().length > 0) {
+            return { filename, markdown: text };
+          }
         }
-      } catch (err) {
-        // Ignora file inesistenti durante il probing
-      }
+      } catch (_) {}
       return null;
     });
 
     const results = await Promise.all(fetchPromises);
-    results.forEach(item => {
-      if (item && item.markdown && item.markdown.trim().length > 0) {
-        worksheets.push(item);
-      }
-    });
+    const worksheets = results.filter(Boolean);
 
-    if (worksheets.length === 0) {
-      throw new Error("Nessun file trovato nella cartella schede_esercizi/");
+    if (worksheets.length > 0) {
+      worksheets.sort((a, b) => a.filename.localeCompare(b.filename));
+      loadRawWorksheets(worksheets);
+      try {
+        localStorage.setItem('ANALISI_LIBRO_LAST_BOOK', JSON.stringify(worksheets));
+      } catch (_) {}
+      return true;
     }
+  } catch (_) {}
 
-    worksheets.sort((a, b) => a.filename.localeCompare(b.filename));
-    loadRawWorksheets(worksheets);
-
-    try {
-      localStorage.setItem('ANALISI_LIBRO_LAST_BOOK', JSON.stringify(worksheets));
-    } catch (err) {
-      console.warn("Storage quota superata o disattivata", err);
-    }
-
-    if (!silent) {
-      const count = BLOCKS_DATA.length;
-      showNotificationToast(`✅ Caricate ${count} unità didattiche dal sito!`);
-    }
-
-  } catch (error) {
-    console.error("Errore caricamento da repository:", error);
-    if (!silent) {
-      if (window.location.protocol === 'file:') {
-        alert("⚠️ Modalità File Locale (file://)\n\nI browser bloccano le chiamate di rete verso file locali per motivi di sicurezza.\n\n👉 In locale, usa il pulsante '📁 Carica da Cartella' o trascina la cartella schede_esercizi/.\n\n🌐 L'importazione automatica dal sito sarà attiva non appena pubblicherai il progetto su Netlify o tramite un server web.");
-      } else {
-        alert("⚠️ Impossibile scaricare le schede dal server. Verifica che la cartella 'schede_esercizi/' sia presente e accessibile.");
-      }
-    }
-  } finally {
-    if (btn) {
-      btn.innerHTML = originalText;
-      btn.disabled = false;
-    }
-  }
+  return false;
 }
 
 // 4. Gestione File e Cartelle Locali (File API & FileReader)
@@ -751,7 +714,7 @@ function printTeacherGuide() {
 }
 
 // 6. Inizializzazione e Listener Drag & Drop
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   // Setup Drag & Drop
   window.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -785,7 +748,11 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Ripristino eventuale ultimo libro da localStorage
+  // 1. Tenta il caricamento automatico silenzioso dal server/repository (Netlify/Web)
+  const loadedFromServer = await tryAutoLoadFromServer();
+  if (loadedFromServer) return;
+
+  // 2. Se non caricato dal server, tenta il ripristino da localStorage
   try {
     const saved = localStorage.getItem('ANALISI_LIBRO_LAST_BOOK');
     if (saved) {
@@ -799,11 +766,6 @@ window.addEventListener('DOMContentLoaded', () => {
     console.warn("Storage non accessibile", err);
   }
 
-  // Se aperto online su server (Netlify, GitHub Pages, o server locale), importa automaticamente in silenzio
-  if (window.location.protocol.startsWith('http')) {
-    loadFromRepository(true);
-    return;
-  }
-
+  // 3. Se non carica o è in locale senza file, mostra la schermata di caricamento come prima (nessun errore)
   showEmptyState();
 });

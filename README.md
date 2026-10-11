@@ -141,12 +141,12 @@ Fornisci all'agente AI (come Antigravity / Gemini) il prompt già pronto contenu
 L'applicazione web [`index.html`](file:///c:/Ai/projects/AnalisiLibro/index.html) è un'applicazione **100% client-side**: non richiede server, database né passaggi intermedi di compilazione.
 
 Può essere utilizzata in due modalità:
-1. **Online (Netlify / Web):** Pubblicando il repository (es. su Netlify). Aprendo il sito da browser desktop o dispositivo mobile (smartphone, tablet, LIM), le schede didattiche vengono importate **automaticamente all'avvio** dalla cartella `schede_esercizi/` del repository tramite il pulsante **`⚡ Carica dal Sito`**.
-2. **In locale:** Facendo doppio clic su `index.html` per aprirlo offline nel tuo browser predefinito e caricando la cartella tramite **`📁 Carica da Cartella`** o Drag & Drop.
+1. **Online (Netlify / Web):** Pubblicando il repository (es. su Netlify). Aprendo il sito da qualsiasi browser desktop o dispositivo mobile (smartphone, tablet, LIM), le schede didattiche vengono caricate **automaticamente e silenziosamente all'avvio** dalla cartella `schede_esercizi/` del repository.
+2. **In locale / Offline:** Aprendo `index.html` offline nel tuo browser predefinito e caricando la cartella tramite **`📁 Carica Cartella Schede`** o Drag & Drop.
 
 #### Come caricare le schede:
-- **Automatico Online (Netlify/Web):** Clicca su **`⚡ Carica dal Sito`** (o lascia che l'app le importi automaticamente all'apertura se non ci sono dati salvati).
-- **Da Cartella Locale:** Fai clic sul pulsante **`📁 Carica da Cartella`** e seleziona `schede_esercizi/`, oppure trascina i file `.md` direttamente nella finestra.
+- **Online (Netlify/Web):** Tutto avviene automaticamente all'accesso: all'apertura del sito le unità didattiche sono già pronte. Se per qualsiasi motivo l'accesso ai file non è disponibile, viene presentata la consueta schermata pulita di caricamento locale senza mostrare errori.
+- **Da Cartella Locale:** Fai clic sul pulsante **`📁 Carica Cartella Schede`** e seleziona `schede_esercizi/`, oppure trascina i file `.md` direttamente nella finestra.
 - L'applicazione rileva all'istante `dati_libro.md`, imposta titolo e autore del romanzo, carica tutte le unità didattiche e memorizza lo stato in locale (`localStorage`).
 
 #### Caratteristiche dell'Interfaccia Web:
