@@ -1,0 +1,885 @@
+/* ==========================================================================
+   Generatore Schede Didattiche - Foglio di Stile Completo
+   Include layout web interattivo, tipografia e regole di stampa A4 (@media print)
+   ========================================================================== */
+
+:root {
+  --primary: #1e3a8a;
+  --primary-light: #eff6ff;
+  --primary-hover: #1d4ed8;
+  --secondary: #0d9488;
+  --accent: #f59e0b;
+  --bg-page: #f8fafc;
+  --bg-card: #ffffff;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  line-height: 1.5;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Top App Bar */
+header {
+  background: #ffffff;
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  box-shadow: var(--shadow-sm);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.brand-icon {
+  width: 42px;
+  height: 42px;
+  background: linear-gradient(135deg, #1e3a8a, #0d9488);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.4rem;
+}
+
+.brand-text h1 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.brand-text p {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+  box-shadow: 0 2px 4px rgba(30, 58, 138, 0.25);
+}
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: white;
+  border-color: var(--border);
+  color: #334155;
+}
+.btn-secondary:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.btn-accent {
+  background-color: #0d9488;
+  color: white;
+}
+.btn-accent:hover {
+  background-color: #0f766e;
+}
+
+
+/* Layout */
+.app-container {
+  display: flex;
+  flex: 1;
+  max-width: 1600px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.25rem 2rem;
+  gap: 1.75rem;
+  align-items: stretch;
+  height: calc(100vh - 75px);
+  overflow: hidden;
+}
+
+/* Left Sidebar: Blocks */
+.sidebar {
+  width: 360px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.sidebar-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-shrink: 0;
+}
+
+.sidebar-header h2 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.blocks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 0.35rem;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.block-item {
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.block-item:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.block-item.active {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.block-item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.block-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.block-item.active .block-badge {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.block-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.block-chapters {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.block-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.2rem;
+}
+
+.selection-counter {
+  color: #0d9488;
+  font-weight: 600;
+}
+
+/* Main Workspace */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+/* Scrollbar sottile ed elegante per Chrome, Edge e Safari */
+.blocks-list::-webkit-scrollbar,
+.main-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.blocks-list::-webkit-scrollbar-track,
+.main-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.blocks-list::-webkit-scrollbar-thumb,
+.main-content::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.blocks-list::-webkit-scrollbar-thumb:hover,
+.main-content::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
+.block-hero {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.hero-info h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.35rem;
+}
+
+.hero-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+}
+
+.hero-summary {
+  font-size: 0.9rem;
+  color: #475569;
+  max-width: 850px;
+}
+
+.selection-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem 1.25rem;
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Exercise Cards */
+.exercises-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.exercise-card {
+  background: white;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.15s ease;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.exercise-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: var(--shadow-md);
+}
+
+.exercise-card.selected {
+  border-color: #3b82f6;
+  background: #f8fafc;
+}
+
+.exercise-checkbox-wrapper {
+  padding-top: 0.2rem;
+}
+
+.custom-checkbox {
+  width: 22px;
+  height: 22px;
+  accent-color: #1e3a8a;
+  cursor: pointer;
+}
+
+.exercise-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.exercise-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.exercise-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tag-comprensione { background: #e0e7ff; color: #3730a3; }
+.tag-vf { background: #fef3c7; color: #92400e; }
+.tag-analisi { background: #dcfce7; color: #166534; }
+.tag-scrittura { background: #fce7f3; color: #9d174d; }
+.tag-lessico { background: #ccfbf1; color: #115e59; }
+.tag-speciale { background: #fae8ff; color: #86198f; }
+
+.exercise-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.exercise-desc {
+  font-size: 0.88rem;
+  color: #475569;
+}
+
+/* Dropzone / Empty State */
+.dropzone-banner {
+  background: #ffffff;
+  border: 2px dashed #94a3b8;
+  border-radius: var(--radius);
+  padding: 3.5rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 1.5rem;
+}
+
+.dropzone-banner:hover,
+.dropzone-banner.dragover {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+}
+
+/* Modal for preview */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.modal-overlay.open {
+  display: flex;
+}
+
+.modal-window {
+  background: white;
+  width: 100%;
+  max-width: 900px;
+  height: 90vh;
+  border-radius: var(--radius);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+}
+
+.modal-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2.5rem 3rem;
+  background: #ffffff;
+  font-family: 'Source Serif 4', Georgia, serif;
+  color: #1a1a1a;
+  line-height: 1.6;
+}
+
+.modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  background: #f8fafc;
+}
+
+/* Student & Teacher Document Printable Styles */
+.student-doc-header {
+  border-bottom: 2px solid #000;
+  padding-bottom: 0.8rem;
+  margin-bottom: 1.25rem;
+  page-break-after: avoid !important;
+  break-after: avoid !important;
+}
+
+.student-fields {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.9rem;
+}
+
+.student-field-line {
+  border-bottom: 1px dotted #333;
+  padding-bottom: 2px;
+}
+
+.doc-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #000;
+  text-align: center;
+  margin-bottom: 0.2rem;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.doc-subtitle {
+  font-size: 1rem;
+  color: #444;
+  text-align: center;
+  font-style: italic;
+  margin-bottom: 0.5rem;
+}
+
+.doc-welcome {
+  background: #f8fafc;
+  border-left: 4px solid #1e3a8a;
+  padding: 0.75rem 1rem;
+  font-size: 0.88rem;
+  margin-bottom: 1.5rem;
+  font-style: italic;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.doc-section {
+  margin-bottom: 1.5rem;
+  page-break-inside: auto;
+  break-inside: auto;
+}
+
+/* Stili specifici per la Guida Docente per evitare salti pagina ingiustificati */
+.teacher-guide-doc,
+.teacher-guide-doc .doc-section,
+.teacher-guide-section {
+  page-break-inside: auto !important;
+  break-inside: auto !important;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: #1e293b;
+}
+
+.teacher-guide-doc h3,
+.teacher-guide-section h3,
+.teacher-guide-doc h4,
+.teacher-guide-section h4 {
+  page-break-after: avoid !important;
+  break-after: avoid !important;
+  margin-top: 1.1rem !important;
+  margin-bottom: 0.4rem !important;
+  color: #0f172a !important;
+}
+
+.teacher-guide-doc p,
+.teacher-guide-section p,
+.teacher-guide-doc li,
+.teacher-guide-section li {
+  page-break-inside: auto !important;
+  break-inside: auto !important;
+  margin-bottom: 0.45rem !important;
+}
+
+.doc-section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  border-bottom: 1.5px solid #333;
+  padding-bottom: 0.3rem;
+  margin-bottom: 0.9rem;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.doc-question {
+  margin-bottom: 1.25rem;
+  page-break-inside: avoid;
+}
+
+.write-lines {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.write-line {
+  border-bottom: 1px dotted #94a3b8;
+  height: 1.1rem;
+}
+
+/* Riquadro per il disegno / rilievo grafico */
+.drawing-box {
+  border: 1.5px dashed #94a3b8;
+  border-radius: 8px;
+  min-height: 140px;
+  margin: 1.25rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.drawing-box-label {
+  font-size: 0.85rem;
+  color: #64748b;
+  font-style: italic;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Tabelle Generali e Laboratorio Lessico */
+.vf-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25rem 0;
+  font-size: 0.92rem;
+  table-layout: auto;
+}
+
+.vf-table th, .vf-table td {
+  border: 1px solid #cbd5e1;
+  padding: 0.65rem 0.85rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.vf-table th {
+  background: #f1f5f9;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 700;
+  color: #1e293b;
+  text-align: left;
+}
+
+/* Tabella Matching / Laboratorio di Lessico (Forzatura larghezze colonne) */
+.table-matching {
+  table-layout: fixed !important;
+  width: 100% !important;
+  border-collapse: collapse !important;
+  margin: 1.25rem 0 !important;
+}
+
+.table-matching th.col-term,
+.table-matching td.col-term {
+  width: 25% !important; /* Colonna 1: Parola dal testo forzata al 25% */
+  font-weight: 600;
+  color: #0f172a;
+  vertical-align: middle;
+  word-break: normal;
+}
+
+.table-matching th.col-match,
+.table-matching td.col-match {
+  width: 16% !important; /* Colonna 2: Corrispondenza forzata al 16% */
+  min-width: 110px !important;
+  text-align: center !important;
+  vertical-align: middle;
+  white-space: nowrap !important; /* Impedisce rigorosamente il ritorno a capo */
+}
+
+.table-matching th.col-def,
+.table-matching td.col-def {
+  width: 59% !important; /* Colonna 3: Definizione / Significato */
+  vertical-align: middle;
+  line-height: 1.5;
+}
+
+/* Riquadro per le parentesi [ ] di abbinamento */
+.matching-box {
+  display: inline-block;
+  min-width: 44px;
+  padding: 3px 8px;
+  border: 1.5px solid #475569;
+  border-radius: 5px;
+  background: #ffffff;
+  font-family: 'Plus Jakarta Sans', monospace, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-align: center;
+  white-space: nowrap !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* Print Stylesheet */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  header, .sidebar, .selection-toolbar, .dropzone-banner, .modal-header, .modal-footer, .header-actions {
+    display: none !important;
+  }
+
+  .app-container {
+    display: block !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .main-content {
+    display: none !important;
+  }
+
+  .modal-overlay {
+    position: static !important;
+    display: block !important;
+    background: none !important;
+    padding: 0 !important;
+  }
+
+  .modal-window {
+    max-width: 100% !important;
+    height: auto !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .modal-body {
+    padding: 0 !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+  }
+
+  .student-doc-header {
+    border-bottom: 2px solid #000 !important;
+    padding-bottom: 0.6rem !important;
+    margin-bottom: 1rem !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  .doc-section {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+    margin-bottom: 1.25rem !important;
+  }
+
+  /* Guida docente in stampa: inizio immediato sotto il titolo e scorrimento naturale */
+  .teacher-guide-doc,
+  .teacher-guide-doc .doc-section,
+  .teacher-guide-section {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+
+  .teacher-guide-doc h3,
+  .teacher-guide-section h3,
+  .teacher-guide-doc h4,
+  .teacher-guide-section h4 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    margin-top: 0.9rem !important;
+    margin-bottom: 0.3rem !important;
+    font-size: 11pt !important;
+    font-weight: 700 !important;
+  }
+
+  .teacher-guide-doc p,
+  .teacher-guide-section p,
+  .teacher-guide-doc li,
+  .teacher-guide-section li {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+    margin-bottom: 0.4rem !important;
+    line-height: 1.35 !important;
+  }
+
+  .write-line {
+    border-bottom: 1px solid #777 !important;
+  }
+
+  .drawing-box {
+    border: 1.5px dashed #333 !important;
+    background: #fff !important;
+    min-height: 150px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Tabella Laboratorio Lessico e Matching in Stampa A4 */
+  .table-matching {
+    table-layout: fixed !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: avoid !important;
+    margin: 1rem 0 !important;
+  }
+
+  .table-matching th,
+  .table-matching td {
+    border: 1px solid #1e293b !important;
+    padding: 6px 8px !important;
+    font-size: 10pt !important;
+    line-height: 1.35 !important;
+  }
+
+  .table-matching th {
+    background-color: #f1f5f9 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    font-weight: 700 !important;
+  }
+
+  .table-matching th.col-term,
+  .table-matching td.col-term {
+    width: 25% !important; /* 1a colonna forzata al 25% */
+    font-weight: 600 !important;
+  }
+
+  .table-matching th.col-match,
+  .table-matching td.col-match {
+    width: 16% !important; /* 2a colonna forzata al 16% */
+    min-width: 90px !important;
+    text-align: center !important;
+    white-space: nowrap !important; /* Impedisce rigorosamente il ritorno a capo in stampa */
+  }
+
+  .table-matching th.col-def,
+  .table-matching td.col-def {
+    width: 59% !important;
+  }
+
+  .matching-box {
+    display: inline-block !important;
+    min-width: 38px !important;
+    padding: 2px 6px !important;
+    border: 1.5px solid #000 !important;
+    border-radius: 4px !important;
+    background: #fff !important;
+    white-space: nowrap !important;
+  }
+}
+

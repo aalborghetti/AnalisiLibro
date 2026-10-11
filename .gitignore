@@ -1,0 +1,8 @@
+# File del libro sorgente protetto da copyright
+*.epub
+
+# File di sistema e temporanei
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
