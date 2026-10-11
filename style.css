@@ -1018,50 +1018,188 @@ header {
   }
 }
 
-/* Print Stylesheet */
+/* Regole attivate dinamicamente via JS prima della stampa per sbloccare i container */
+html.is-printing,
+body.is-printing {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  display: block !important;
+  position: static !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: #ffffff !important;
+}
+
+body.is-printing header,
+body.is-printing .app-container,
+body.is-printing .modal-header,
+body.is-printing .modal-footer {
+  display: none !important;
+}
+
+body.is-printing .modal-overlay,
+body.is-printing .modal-overlay.open {
+  position: static !important;
+  display: block !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  overflow-y: visible !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+body.is-printing .modal-window {
+  position: static !important;
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  box-shadow: none !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+body.is-printing .modal-body {
+  display: block !important;
+  position: static !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  overflow-y: visible !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+}
+
+/* Print Stylesheet - Paginazione A4 Fluida Multi-pagina senza barre di scorrimento */
 @media print {
-  body {
-    background: white !important;
-    color: black !important;
+  @page {
+    size: A4 portrait;
+    margin: 15mm 12mm 15mm 12mm;
+  }
+
+  /* Reset radicale html e body: elimina blocchi fixed-height e flex */
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
     height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
     overflow: visible !important;
-    padding-bottom: 0 !important;
-  }
-
-  header, .sidebar, .selection-toolbar, .dropzone-banner, .modal-header, .modal-footer, .header-actions {
-    display: none !important;
-  }
-
-  .app-container {
+    overflow-x: visible !important;
+    overflow-y: visible !important;
     display: block !important;
+    position: static !important;
     padding: 0 !important;
-    max-width: 100% !important;
-    height: auto !important;
-    overflow: visible !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
   }
 
-  .main-content {
+  /* Nascondi completamente tutti gli elementi di interfaccia dell'applicazione */
+  header,
+  .app-container,
+  .sidebar,
+  .main-content,
+  .selection-toolbar,
+  .dropzone-banner,
+  .block-hero,
+  .exercises-grid,
+  .modal-header,
+  .modal-footer,
+  .header-actions,
+  .app-toast {
     display: none !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
   }
 
-  .modal-overlay {
+  /* Contenitore Modale di Stampa: Sbloccato per paginazione continua multi-pagina */
+  .modal-overlay,
+  .modal-overlay.open {
     position: static !important;
     display: block !important;
-    background: none !important;
+    background: transparent !important;
     padding: 0 !important;
-  }
-
-  .modal-window {
-    max-width: 100% !important;
+    margin: 0 !important;
+    width: 100% !important;
     height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     box-shadow: none !important;
     border: none !important;
   }
 
-  .modal-body {
+  .modal-window {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
     padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  .modal-body {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
     font-size: 11pt !important;
-    line-height: 1.4 !important;
+    line-height: 1.45 !important;
+    font-family: 'Source Serif 4', Georgia, serif !important;
+    color: #000000 !important;
+    background: transparent !important;
+    scrollbar-width: none !important;
+  }
+
+  .modal-body::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .table-responsive {
+    overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    width: 100% !important;
+    margin: 0.8rem 0 !important;
   }
 
   .student-doc-header {
@@ -1076,6 +1214,16 @@ header {
     page-break-inside: auto !important;
     break-inside: auto !important;
     margin-bottom: 1.25rem !important;
+  }
+
+  .doc-section-title {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  .doc-question {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   /* Guida docente in stampa: inizio immediato sotto il titolo e scorrimento naturale */
@@ -1126,6 +1274,7 @@ header {
     width: 100% !important;
     border-collapse: collapse !important;
     page-break-inside: avoid !important;
+    break-inside: avoid !important;
     margin: 1rem 0 !important;
   }
 
@@ -1146,16 +1295,16 @@ header {
 
   .table-matching th.col-term,
   .table-matching td.col-term {
-    width: 25% !important; /* 1a colonna forzata al 25% */
+    width: 25% !important;
     font-weight: 600 !important;
   }
 
   .table-matching th.col-match,
   .table-matching td.col-match {
-    width: 16% !important; /* 2a colonna forzata al 16% */
+    width: 16% !important;
     min-width: 90px !important;
     text-align: center !important;
-    white-space: nowrap !important; /* Impedisce rigorosamente il ritorno a capo in stampa */
+    white-space: nowrap !important;
   }
 
   .table-matching th.col-def,
@@ -1171,6 +1320,12 @@ header {
     border-radius: 4px !important;
     background: #fff !important;
     white-space: nowrap !important;
+  }
+
+  .vf-table {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+    width: 100% !important;
   }
 }
 

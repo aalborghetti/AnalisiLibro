@@ -154,7 +154,7 @@ Può essere utilizzata in due modalità:
 2. **Selezione selettiva degli esercizi:** 
    - Tutti gli esercizi (6 per ciascun blocco) sono selezionati per impostazione predefinita all'avvio.
    - Il docente può deselezionare con un semplice clic qualsiasi attività per calibrare il carico di lavoro in base al tempo a disposizione o al livello della classe.
-   - Pulsanti rapidi: *Seleziona Tutto*, *Deseleziona*, *Consigliati*.
+   - Pulsanti rapidi: *Seleziona Tutti*, *Deseleziona Tutti*.
 3. **Gruppo Comandi STUDENTI:**
    - **`👁️ Anteprima`:** Visualizza in finestra modale l'anteprima esatta del foglio di lavoro A4 prima di procedere alla stampa.
    - **`🖨️ Stampa PDF`:** Genera il PDF formattato per stampa A4 con intestazione alunno, citazione e righe puntinate per scrivere le risposte a mano. **Esclude rigorosamente la guida del docente e le risposte.**

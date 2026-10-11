@@ -709,6 +709,21 @@ function printTeacherGuide() {
   setTimeout(() => { window.print(); }, 350);
 }
 
+// Assicura che prima della stampa il layout sia sbloccato e il contenuto sia pronto
+window.addEventListener('beforeprint', () => {
+  document.documentElement.classList.add('is-printing');
+  document.body.classList.add('is-printing');
+  const modalContent = document.getElementById('modal-content');
+  if (!modalContent || !modalContent.innerHTML.trim()) {
+    openPrintPreview();
+  }
+});
+
+window.addEventListener('afterprint', () => {
+  document.documentElement.classList.remove('is-printing');
+  document.body.classList.remove('is-printing');
+});
+
 // 6. Inizializzazione e Listener Drag & Drop
 window.addEventListener('DOMContentLoaded', async () => {
   // Setup Drag & Drop
