@@ -760,11 +760,6 @@ header {
   margin: 1rem 0;
 }
 
-/* Barra Rapida Mobile (Nascosta su desktop) */
-.mobile-bottom-bar {
-  display: none;
-}
-
 /* ==========================================================================
    Regole Responsive Avanzate per Dispositivi Mobili e Tablet (<= 900px)
    ========================================================================== */
@@ -773,7 +768,6 @@ header {
     height: auto !important;
     min-height: 100vh !important;
     overflow-y: auto !important;
-    padding-bottom: 74px !important;
   }
 
   /* Header più compatto e touch-friendly */
@@ -1001,34 +995,6 @@ header {
     padding: 0.45rem 0.75rem !important;
   }
 
-  /* Barra Rapida Inferiore Sticky su Mobile */
-  .mobile-bottom-bar {
-    display: flex !important;
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    background: rgba(255, 255, 255, 0.96) !important;
-    backdrop-filter: blur(10px) !important;
-    -webkit-backdrop-filter: blur(10px) !important;
-    border-top: 1px solid var(--border) !important;
-    padding: 0.5rem 0.65rem !important;
-    gap: 0.4rem !important;
-    justify-content: space-around !important;
-    z-index: 90 !important;
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08) !important;
-  }
-
-  .mobile-bottom-bar .mobile-btn {
-    flex: 1 !important;
-    padding: 0.55rem 0.35rem !important;
-    font-size: 0.76rem !important;
-    font-weight: 700 !important;
-    justify-content: center !important;
-    white-space: nowrap !important;
-    border-radius: 8px !important;
-  }
-
   /* Tabelle responsive in anteprima e schede */
   .table-matching th, .table-matching td,
   .vf-table th, .vf-table td {
@@ -1062,7 +1028,7 @@ header {
     padding-bottom: 0 !important;
   }
 
-  header, .sidebar, .selection-toolbar, .dropzone-banner, .modal-header, .modal-footer, .header-actions, .mobile-bottom-bar {
+  header, .sidebar, .selection-toolbar, .dropzone-banner, .modal-header, .modal-footer, .header-actions {
     display: none !important;
   }
 
