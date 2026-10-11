@@ -224,7 +224,7 @@ function markdownToHtml(md, wrapperClass = 'doc-section') {
     });
 
     const tableClass = isMatchingTable ? 'table-matching' : 'vf-table';
-    return `<table class="${tableClass}">${theadHtml}<tbody>${tbodyHtml}</tbody></table>`;
+    return `<div class="table-responsive"><table class="${tableClass}">${theadHtml}<tbody>${tbodyHtml}</tbody></table></div>`;
   });
 
   // Liste puntate
@@ -292,6 +292,8 @@ function loadRawWorksheets(worksheetsArray) {
   if (toolbar) toolbar.style.display = 'flex';
   const grid = document.getElementById('exercises-grid');
   if (grid) grid.style.display = 'flex';
+  const mBar = document.getElementById('mobile-bottom-bar');
+  if (mBar) mBar.style.display = 'flex';
 
   // Aggiorna l'intestazione
   document.getElementById('app-book-title').textContent = globalBookTitle;
@@ -313,6 +315,8 @@ function showEmptyState() {
   if (toolbar) toolbar.style.display = 'none';
   const grid = document.getElementById('exercises-grid');
   if (grid) grid.style.display = 'none';
+  const mBar = document.getElementById('mobile-bottom-bar');
+  if (mBar) mBar.style.display = 'none';
   const list = document.getElementById('blocks-list');
   if (list) list.innerHTML = '<div style="padding: 1.5rem 1rem; color: #94a3b8; font-size: 0.85rem; text-align: center;">Nessun blocco caricato.<br>Carica la cartella <code>schede_esercizi/</code>.</div>';
   document.getElementById('app-book-title').textContent = "Generatore Schede Didattiche & PDF";
@@ -544,6 +548,16 @@ function selectBlock(id) {
   currentBlockId = id;
   renderSidebar();
   renderActiveBlock();
+  
+  // Su dispositivi mobili, centra dolcemente il blocco attivo nella barra orizzontale
+  if (window.innerWidth <= 900) {
+    setTimeout(() => {
+      const activeEl = document.querySelector('.block-item.active');
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }, 50);
+  }
 }
 
 function renderActiveBlock() {

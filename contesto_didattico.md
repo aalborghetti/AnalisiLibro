@@ -64,9 +64,9 @@ Quando analizzi il testo ed elabori le attività didattiche, adotta rigorosament
 4. **Generazione Autonoma delle Schede:**
    - Procedi blocco per blocco salvando ciascuna scheda in `schede_esercizi/` con nomenclatura progressiva (es. `blocco_01_esercizi.md`, `blocco_02_esercizi.md`, ecc.).
 
-5. **Fruizione con il Generatore Web (Locale o GitHub Pages):**
-   - Apri `generatore_schede.html` nel browser (o visita l'applicazione pubblicata su GitHub Pages).
-   - Carica la cartella `schede_esercizi/` cliccando su «📁 Carica Cartella Schede» o trascinandola direttamente nel riquadro di rilascio.
+5. **Fruizione con il Generatore Web (Locale o Netlify):**
+   - Apri `index.html` nel browser (o visita l'applicazione pubblicata su Netlify/Web).
+   - Importa le schede con il pulsante «⚡ Carica dal Sito» oppure carica la cartella locale «📁 Carica da Cartella».
    - L'applicazione rileva all'istante i dati del libro da `dati_libro.md`, popola tutti i blocchi con le relative attività e consente al docente di selezionare gli esercizi desiderati per stampare o salvare in PDF le schede alunni o la guida per l'insegnante.
 
 ---

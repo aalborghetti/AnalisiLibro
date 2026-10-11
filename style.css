@@ -752,74 +752,303 @@ header {
   transform: translateY(0);
 }
 
-/* Regole Responsive per Dispositivi Mobili e Tablet */
+/* Responsive Table Container */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 1rem 0;
+}
+
+/* Barra Rapida Mobile (Nascosta su desktop) */
+.mobile-bottom-bar {
+  display: none;
+}
+
+/* ==========================================================================
+   Regole Responsive Avanzate per Dispositivi Mobili e Tablet (<= 900px)
+   ========================================================================== */
 @media (max-width: 900px) {
   body {
-    height: auto;
-    min-height: 100vh;
-    overflow-y: auto;
+    height: auto !important;
+    min-height: 100vh !important;
+    overflow-y: auto !important;
+    padding-bottom: 74px !important;
   }
 
+  /* Header più compatto e touch-friendly */
   header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.85rem;
-    padding: 0.85rem 1rem;
-    position: static;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+    padding: 0.75rem 1rem !important;
+    position: sticky !important;
+    top: 0 !important;
+    background: #ffffff !important;
+    z-index: 45 !important;
+  }
+
+  .brand {
+    gap: 0.5rem !important;
+  }
+
+  .brand-icon {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 1.2rem !important;
+  }
+
+  .brand-text h1 {
+    font-size: 1rem !important;
+  }
+
+  .brand-text p {
+    font-size: 0.75rem !important;
   }
 
   .header-actions {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.6rem;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 0.4rem !important;
+    justify-content: flex-start !important;
   }
 
   .header-actions > div {
-    justify-content: center;
+    flex-wrap: wrap !important;
+  }
+
+  .header-actions .btn {
+    padding: 0.4rem 0.65rem !important;
+    font-size: 0.78rem !important;
   }
 
   .app-container {
-    flex-direction: column;
-    height: auto;
-    overflow: visible;
-    padding: 1rem;
-    gap: 1.25rem;
+    flex-direction: column !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0.75rem !important;
+    gap: 1rem !important;
   }
 
+  /* Sidebar a scorrimento orizzontale (stile tabs/chip swipeable) */
   .sidebar {
-    width: 100%;
-    height: auto;
-    max-height: 280px;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  .sidebar-card {
+    padding: 0.75rem !important;
+    border-radius: 10px !important;
+  }
+
+  .sidebar-header {
+    margin-bottom: 0.4rem !important;
+    padding-bottom: 0.4rem !important;
+  }
+
+  .blocks-list {
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    gap: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+    -webkit-overflow-scrolling: touch !important;
+    scroll-snap-type: x mandatory !important;
+    scrollbar-width: thin !important;
+  }
+
+  .block-item {
+    flex: 0 0 auto !important;
+    width: 210px !important;
+    max-width: 230px !important;
+    padding: 0.6rem 0.75rem !important;
+    scroll-snap-align: start !important;
+    border-radius: 8px !important;
+  }
+
+  .block-title {
+    font-size: 0.85rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .block-chapters {
+    font-size: 0.74rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
 
   .main-content {
-    height: auto;
-    overflow: visible;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .block-hero {
+    padding: 1rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .block-hero h2 {
+    font-size: 1.15rem !important;
+  }
+
+  .hero-meta {
+    flex-wrap: wrap !important;
+    gap: 0.4rem !important;
+    font-size: 0.78rem !important;
+  }
+
+  .hero-summary {
+    font-size: 0.85rem !important;
   }
 
   .selection-toolbar {
-    position: static;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.6rem;
+    position: static !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.6rem !important;
+    padding: 0.75rem 1rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .toolbar-left {
+    justify-content: space-between !important;
+    width: 100% !important;
+    font-size: 0.82rem !important;
   }
 
   .toolbar-actions {
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 0.35rem !important;
+    width: 100% !important;
   }
 
+  .toolbar-actions .btn {
+    flex: 1 1 auto !important;
+    text-align: center !important;
+    justify-content: center !important;
+    padding: 0.42rem 0.5rem !important;
+    font-size: 0.76rem !important;
+  }
+
+  .exercises-grid {
+    gap: 0.75rem !important;
+  }
+
+  .exercise-card {
+    padding: 0.85rem !important;
+    gap: 0.75rem !important;
+  }
+
+  .exercise-checkbox-wrapper {
+    min-width: 32px !important;
+    min-height: 32px !important;
+    padding-top: 2px !important;
+  }
+
+  .custom-checkbox {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .exercise-title {
+    font-size: 0.95rem !important;
+  }
+
+  .exercise-desc {
+    font-size: 0.82rem !important;
+  }
+
+  /* Modal a schermo intero su smartphone */
   .modal-overlay {
-    padding: 0.5rem;
+    padding: 0 !important;
   }
 
   .modal-window {
-    height: 95vh;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    max-width: 100vw !important;
+    border-radius: 0 !important;
+  }
+
+  .modal-header {
+    padding: 0.75rem 1rem !important;
+  }
+
+  .modal-title {
+    font-size: 0.95rem !important;
   }
 
   .modal-body {
-    padding: 1.25rem 1rem;
+    padding: 1.25rem 1rem !important;
+    font-size: 0.95rem !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .modal-footer {
+    padding: 0.75rem 1rem !important;
+    gap: 0.5rem !important;
+  }
+
+  .modal-footer .btn {
+    font-size: 0.82rem !important;
+    padding: 0.45rem 0.75rem !important;
+  }
+
+  /* Barra Rapida Inferiore Sticky su Mobile */
+  .mobile-bottom-bar {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    background: rgba(255, 255, 255, 0.96) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border-top: 1px solid var(--border) !important;
+    padding: 0.5rem 0.65rem !important;
+    gap: 0.4rem !important;
+    justify-content: space-around !important;
+    z-index: 90 !important;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08) !important;
+  }
+
+  .mobile-bottom-bar .mobile-btn {
+    flex: 1 !important;
+    padding: 0.55rem 0.35rem !important;
+    font-size: 0.76rem !important;
+    font-weight: 700 !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    border-radius: 8px !important;
+  }
+
+  /* Tabelle responsive in anteprima e schede */
+  .table-matching th, .table-matching td,
+  .vf-table th, .vf-table td {
+    padding: 6px 6px !important;
+    font-size: 0.82rem !important;
+  }
+
+  .table-matching th.col-term, .table-matching td.col-term {
+    width: 32% !important;
+  }
+
+  .table-matching th.col-match, .table-matching td.col-match {
+    width: 20% !important;
+    min-width: 60px !important;
+  }
+
+  .matching-box {
+    min-width: 32px !important;
+    padding: 2px 4px !important;
+    font-size: 0.82rem !important;
   }
 }
 
@@ -830,9 +1059,10 @@ header {
     color: black !important;
     height: auto !important;
     overflow: visible !important;
+    padding-bottom: 0 !important;
   }
 
-  header, .sidebar, .selection-toolbar, .dropzone-banner, .modal-header, .modal-footer, .header-actions {
+  header, .sidebar, .selection-toolbar, .dropzone-banner, .modal-header, .modal-footer, .header-actions, .mobile-bottom-bar {
     display: none !important;
   }
 

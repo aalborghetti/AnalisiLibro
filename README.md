@@ -11,8 +11,8 @@ Di seguito la struttura del progetto nella sua configurazione iniziale (prima de
 
 ```text
 AnalisiLibro/
-├── generatore_schede.html        # Applicazione web per selezione esercizi e stampa PDF (anche per GitHub Pages)
-├── style.css                     # Foglio di stile CSS (layout interfaccia, tipografia, stampa A4)
+├── index.html                    # Applicazione web per selezione esercizi e stampa PDF (Netlify / Web / Locale)
+├── style.css                     # Foglio di stile CSS (layout interfaccia, responsive mobile, tipografia, stampa A4)
 ├── contesto_didattico.md         # Modello pedagogico, profilo docente, criteri di ragionamento e vincoli
 ├── prompt.md                     # Prompt chiavi in mano da fornire all'AI per avviare l'elaborazione
 ├── README.md                     # Manuale operativo completo e documentazione tecnica unificata
@@ -37,7 +37,7 @@ AnalisiLibro/
 
 ## 📍 Dove Posizionare il Libro da Analizzare
 
-Il file del libro in formato **`.epub`** deve essere posizionato **nella cartella principale del progetto** (la directory radice `AnalisiLibro/`, allo stesso livello di `generatore_schede.html`, `contesto_didattico.md` e `prompt.md`).
+Il file del libro in formato **`.epub`** deve essere posizionato **nella cartella principale del progetto** (la directory radice `AnalisiLibro/`, allo stesso livello di `index.html`, `contesto_didattico.md` e `prompt.md`).
 
 > [!TIP]
 > Se nella cartella radice è presente un solo file `.epub`, gli script di estrazione lo individueranno **automaticamente**, senza bisogno di specificarne il nome o il percorso da riga di comando.
@@ -54,8 +54,8 @@ flowchart TD
     B --> C["Cartella testo_capitoli/ popolata con .txt & indice_capitoli.md"]
     C --> D["3. Avvia l'Agente AI con prompt.md + contesto_didattico.md"]
     D --> E["Schede create in schede_esercizi/ (+ dati_libro.md)"]
-    E --> F["4. Apri generatore_schede.html (in locale o su GitHub Pages)"]
-    F --> G["5. Carica schede_esercizi/ con un clic o Drag & Drop"]
+    E --> F["4. Apri index.html (in locale o su Netlify)"]
+    F --> G["5. Importa schede dal sito o trascina la cartella"]
     G --> H["Stampa / Salva in PDF per Studenti o Docente"]
 ```
 
@@ -136,13 +136,13 @@ Fornisci all'agente AI (come Antigravity / Gemini) il prompt già pronto contenu
 
 ---
 
-### Passo 3: Selezione Esercizi e Stampa PDF con il Generatore Web (Locale o GitHub Pages)
+### Passo 3: Selezione Esercizi e Stampa PDF con il Generatore Web (Netlify o Locale)
 
-L'applicazione web [`generatore_schede.html`](file:///c:/Ai/projects/AnalisiLibro/generatore_schede.html) è un'applicazione **100% client-side**: non richiede server, database né passaggi intermedi di compilazione.
+L'applicazione web [`index.html`](file:///c:/Ai/projects/AnalisiLibro/index.html) è un'applicazione **100% client-side**: non richiede server, database né passaggi intermedi di compilazione.
 
 Può essere utilizzata in due modalità:
 1. **Online (Netlify / Web):** Pubblicando il repository (es. su Netlify). Aprendo il sito da browser desktop o dispositivo mobile (smartphone, tablet, LIM), le schede didattiche vengono importate **automaticamente all'avvio** dalla cartella `schede_esercizi/` del repository tramite il pulsante **`⚡ Carica dal Sito`**.
-2. **In locale:** Facendo doppio clic su `generatore_schede.html` per aprirlo offline nel tuo browser predefinito e caricando la cartella tramite **`📁 Carica da Cartella`** o Drag & Drop.
+2. **In locale:** Facendo doppio clic su `index.html` per aprirlo offline nel tuo browser predefinito e caricando la cartella tramite **`📁 Carica da Cartella`** o Drag & Drop.
 
 #### Come caricare le schede:
 - **Automatico Online (Netlify/Web):** Clicca su **`⚡ Carica dal Sito`** (o lascia che l'app le importi automaticamente all'apertura se non ci sono dati salvati).
