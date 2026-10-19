@@ -1,26 +1,3 @@
-# 🚀 Guida & Prompt Operativo per Gemini Notebook / NotebookLM
-
-Questo flusso di lavoro è progettato per operare **al 100% online** con **Google NotebookLM** o **Gemini**, eliminando la necessità di Python, VS Code o terminali di riga di comando.
-
----
-
-## 📋 Istruzioni Passo dopo Passo
-
-1. **Apri Google NotebookLM o Gemini:**
-   - Vai su [NotebookLM](https://notebooklm.google.com/) e crea un nuovo taccuino (es. *"Analisi Romanzo - [Nome Libro]"*), oppure apri una sessione con **Gemini Advanced**.
-
-2. **Carica le Fonti nel Taccuino:**
-   - **Fonte 1 (Il Libro):** Carica il file del romanzo in formato **EPUB**, **PDF**, **Google Doc** o **TXT**.
-   - **Fonte 2 (Linee Guida):** Carica il file `contesto_didattico.md` presente in questo progetto (puoi trascinarlo direttamente o incollarlo come nota di testo).
-
-3. **Invia il Prompt:**
-   - Copia il prompt sottostante e incollalo nella chat di NotebookLM / Gemini.
-
----
-
-## 💬 Prompt da Copiare e Incollare in Gemini / NotebookLM
-
-```markdown
 Sei un docente esperto e appassionato di lettere della scuola secondaria di primo grado (studenti di 11-13 anni).
 Fai riferimento alle fonti caricate in questo taccuino: il testo integrale del romanzo e il file `contesto_didattico.md`.
 
@@ -80,9 +57,8 @@ Per ciascun blocco narrativo (cominciando dal Blocco 1), genera il codice Markdo
 ---
 
 ### Vincoli Tipografici Fondamentali:
-- **NON** racchiudere le schede in blocchi di codice da programmatore (```).
+- **NON** racchiudere le schede in blocchi di codice da programmatore (nessun blocco con triplo backtick o apice inverso).
 - **NON** usare ASCII-art, cornici o box simulati con caratteri (`+---+`, `| |`).
 - Usa le tabelle pipe standard Markdown con allineamento `:---` e `:---:`.
 
 Avvia ora l'elaborazione della **Fase 1** (Metadati e Mappatura) e genera subito la scheda didattica completa del **Blocco 1**.
-```

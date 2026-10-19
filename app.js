@@ -1502,12 +1502,22 @@ function closeHelpModal() {
 function renderReadmeMarkdown(md) {
   let html = md;
 
-  // Protezione blocchi di codice ```...```
+  // Protezione blocchi di codice (supporta ``` o ````)
   const codeBlocks = [];
-  html = html.replace(/```([a-zA-Z]*)\r?\n([\s\S]*?)```/g, (match, lang, code) => {
+  html = html.replace(/(````|```)([a-zA-Z]*)\r?\n([\s\S]*?)\1/g, (match, fence, lang, code) => {
     const placeholder = `%%%CODE_BLOCK_${codeBlocks.length}%%%`;
+    const cleanCode = code.trim();
+    const langDisplay = lang ? lang.toUpperCase() : 'PROMPT / CODICE';
     codeBlocks.push(
-      `<div style="background: #0f172a; color: #f1f5f9; padding: 1rem 1.25rem; border-radius: 8px; margin: 1rem 0; overflow-x: auto; font-family: monospace; font-size: 0.85rem; line-height: 1.5; border: 1px solid #334155;"><pre style="margin: 0;"><code>${escapeHtml(code.trim())}</code></pre></div>`
+      `<div style="background: #0f172a; border-radius: 8px; margin: 1.2rem 0; overflow: hidden; border: 1px solid #334155; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);">
+        <div style="background: #1e293b; padding: 0.45rem 1rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155;">
+          <span style="font-size: 0.72rem; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em; font-family: monospace;">${escapeHtml(langDisplay)}</span>
+          <button type="button" class="btn btn-secondary btn-sm" style="font-size: 0.72rem; padding: 0.2rem 0.65rem; background: #334155; color: #f8fafc; border: 1px solid #475569; cursor: pointer;" onclick="copyCodeSnippet(this)" data-code="${encodeURIComponent(cleanCode)}">📋 Copia Blocco</button>
+        </div>
+        <div style="padding: 1rem 1.25rem; overflow-x: auto; font-family: monospace; font-size: 0.85rem; line-height: 1.5; color: #f1f5f9;">
+          <pre style="margin: 0; white-space: pre-wrap; word-break: break-word;"><code>${escapeHtml(cleanCode)}</code></pre>
+        </div>
+      </div>`
     );
     return placeholder;
   });
@@ -1650,21 +1660,48 @@ function switchPromptContextTab(tab) {
   content.scrollTop = 0;
 }
 
+function copyCodeSnippet(btn) {
+  const encoded = btn.getAttribute('data-code');
+  if (!encoded) return;
+  const code = decodeURIComponent(encoded);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code).then(() => {
+      showNotificationToast('📋 Prompt operativo copiato negli appunti! Incollalo in Gemini / NotebookLM.');
+    }).catch(() => {
+      fallbackCopyText(code, 'prompt_ai.txt');
+    });
+  } else {
+    fallbackCopyText(code, 'prompt_ai.txt');
+  }
+}
+
 function copyCurrentPromptContextText() {
   const isPrompt = currentPromptContextTab === 'prompt';
-  const text = isPrompt
+  const fullText = isPrompt
     ? (promptRawCache || getFallbackPromptText())
     : (contextRawCache || getFallbackContextText());
   const filename = isPrompt ? 'prompt.md' : 'contesto_didattico.md';
 
+  // Se siamo nella scheda Prompt, estrai il prompt operativo per Gemini
+  let textToCopy = fullText;
+  if (isPrompt) {
+    const match = fullText.match(/(?:````|```)(?:markdown)?\r?\n([\s\S]*?)(?:````|```)/);
+    if (match && match[1]) {
+      textToCopy = match[1].trim();
+    }
+  }
+
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(() => {
-      showNotificationToast(`📋 Testo di "${filename}" copiato negli appunti!`);
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      const msg = isPrompt
+        ? '🤖 Prompt operativo per Gemini/NotebookLM copiato negli appunti!'
+        : `📋 Testo di "${filename}" copiato negli appunti!`;
+      showNotificationToast(msg);
     }).catch(() => {
-      fallbackCopyText(text, filename);
+      fallbackCopyText(textToCopy, filename);
     });
   } else {
-    fallbackCopyText(text, filename);
+    fallbackCopyText(textToCopy, filename);
   }
 }
 
@@ -1675,7 +1712,7 @@ function fallbackCopyText(text, filename) {
   ta.select();
   try {
     document.execCommand('copy');
-    showNotificationToast(`📋 Testo di "${filename}" copiato negli appunti!`);
+    showNotificationToast(`📋 Testo copiato negli appunti!`);
   } catch (_) {
     showNotificationToast(`Impossibile copiare automaticamente. Scarica il file "${filename}".`);
   }
@@ -1705,30 +1742,7 @@ function downloadBothPromptAndContext() {
 }
 
 function getFallbackPromptText() {
-  return `# 🚀 Guida & Prompt Operativo per Gemini Notebook / NotebookLM
-
-Questo flusso di lavoro è progettato per operare **al 100% online** con **Google NotebookLM** o **Gemini**, eliminando la necessità di Python, VS Code o terminali di riga di comando.
-
----
-
-## 📋 Istruzioni Passo dopo Passo
-
-1. **Apri Google NotebookLM o Gemini:**
-   - Vai su [NotebookLM](https://notebooklm.google.com/) e crea un nuovo taccuino, oppure apri una sessione con **Gemini Advanced**.
-
-2. **Carica le Fonti nel Taccuino:**
-   - **Fonte 1 (Il Libro):** Carica il file del romanzo in formato **EPUB**, **PDF**, **Google Doc** o **TXT**.
-   - **Fonte 2 (Linee Guida):** Carica il file \`contesto_didattico.md\`.
-
-3. **Invia il Prompt:**
-   - Copia il prompt sottostante e incollalo nella chat di NotebookLM / Gemini.
-
----
-
-## 💬 Prompt da Copiare e Incollare in Gemini / NotebookLM
-
-\`\`\`markdown
-Sei un docente esperto e appassionato di lettere della scuola secondaria di primo grado (studenti di 11-13 anni).
+  return `Sei un docente esperto e appassionato di lettere della scuola secondaria di primo grado (studenti di 11-13 anni).
 Fai riferimento alle fonti caricate in questo taccuino: il testo integrale del romanzo e il file \`contesto_didattico.md\`.
 
 Il tuo obiettivo è analizzare l'intero libro e creare il percorso didattico completo, composto dalla scheda anagrafica dei metadati e dalle schede di lettura per ciascun blocco narrativo del romanzo, impaginate in Markdown puro e pronte per l'applicazione web di stampa.
@@ -1787,13 +1801,11 @@ Per ciascun blocco narrativo (cominciando dal Blocco 1), genera il codice Markdo
 ---
 
 ### Vincoli Tipografici Fondamentali:
-- **NON** racchiudere le schede in blocchi di codice da programmatore (\`\`\`).
+- **NON** racchiudere le schede in blocchi di codice da programmatore (nessun blocco con triplo backtick o apice inverso).
 - **NON** usare ASCII-art, cornici o box simulati con caratteri (\`+---+\`, \`| |\`).
 - Usa le tabelle pipe standard Markdown con allineamento \`:---\` e \`:---:\`.
 
-Avvia ora l'elaborazione della **Fase 1** (Metadati e Mappatura) e genera subito la scheda didattica completa del **Blocco 1**.
-\`\`\`
-`;
+Avvia ora l'elaborazione della **Fase 1** (Metadati e Mappatura) e genera subito la scheda didattica completa del **Blocco 1**.\n`;
 }
 
 function getFallbackContextText() {
