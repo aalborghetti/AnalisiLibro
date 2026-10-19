@@ -43,6 +43,9 @@
         <button class="btn btn-primary" style="padding: 0.42rem 0.8rem; font-size: 0.82rem;" onclick="printStudentSheet()" title="Stampa o salva in PDF il blocco attivo">
           🖨️ Stampa PDF
         </button>
+        <button class="btn btn-secondary" style="padding: 0.42rem 0.8rem; font-size: 0.82rem;" onclick="exportStudentDocx()" title="Esporta scheda studenti in formato Word / Google Documenti (.docx)">
+          📄 DOCX
+        </button>
         <button class="btn btn-secondary" style="padding: 0.42rem 0.8rem; font-size: 0.82rem;" onclick="openFullBookPreview()" title="Anteprima e stampa di tutte le unità didattiche in un unico fascicolo">
           📚 Fascicolo Completo
         </button>
@@ -56,6 +59,9 @@
         </button>
         <button class="btn btn-accent" style="padding: 0.42rem 0.8rem; font-size: 0.82rem;" onclick="printTeacherGuide()">
           📘 Stampa Guida
+        </button>
+        <button class="btn btn-secondary" style="padding: 0.42rem 0.8rem; font-size: 0.82rem; background: #ffffff;" onclick="exportTeacherDocx()" title="Esporta guida docente in formato Word / Google Documenti (.docx)">
+          📄 DOCX
         </button>
       </div>
 
@@ -175,9 +181,12 @@
       <div class="modal-body" id="modal-content">
         <!-- Rendered printable content -->
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
         <button class="btn btn-secondary" onclick="closePrintPreview()">Torna alla Selezione</button>
-        <button class="btn btn-primary" onclick="window.print()">🖨️ Stampa / Salva in PDF</button>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <button class="btn btn-secondary" onclick="exportCurrentPreviewDocx()" title="Esporta l'anteprima corrente in formato Word / Google Documenti (.docx)">📄 Esporta DOCX</button>
+          <button class="btn btn-primary" onclick="window.print()">🖨️ Stampa / Salva in PDF</button>
+        </div>
       </div>
     </div>
   </div>
@@ -349,6 +358,9 @@
       </div>
     </div>
   </div>
+
+  <!-- Libreria per compressione OOXML DOCX Client-Side -->
+  <script src="jszip.min.js"></script>
 
   <!-- Logica Applicativa Client-Side -->
   <script src="app.js"></script>

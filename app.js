@@ -117,7 +117,8 @@ function parseWorksheetMarkdown(filename, rawMd) {
           title: "Analisi del Personaggio e Riflessione",
           desc: "Riflessione sui conflitti interiori e sulle scelte etiche.",
           defaultSelected: true,
-          contentHtml: markdownToHtml(parts[0])
+          contentHtml: markdownToHtml(parts[0]),
+          rawMarkdown: parts[0]
         });
         exercises.push({
           id: `${safeFileId}_sec_${i}_b`,
@@ -126,7 +127,8 @@ function parseWorksheetMarkdown(filename, rawMd) {
           title: "Spunto di Scrittura Creativa ed Empatia",
           desc: "Traccia di immedesimazione personale o monologo interiore.",
           defaultSelected: true,
-          contentHtml: markdownToHtml("### Scrittura Creativa ed Empatia\n" + parts[1])
+          contentHtml: markdownToHtml("### Scrittura Creativa ed Empatia\n" + parts[1]),
+          rawMarkdown: "### Scrittura Creativa ed Empatia\n" + parts[1]
         });
         continue;
       }
@@ -139,7 +141,8 @@ function parseWorksheetMarkdown(filename, rawMd) {
       title: current.title.replace(/^[0-9]+\.\s*/, ''),
       desc: desc,
       defaultSelected: defaultSelected,
-      contentHtml: markdownToHtml(sectionChunk)
+      contentHtml: markdownToHtml(sectionChunk),
+      rawMarkdown: sectionChunk
     });
   }
 
@@ -749,7 +752,20 @@ function buildPrintableHtml() {
   return buildSingleBlockPrintableHtml(block);
 }
 
+let currentPreviewType = 'student'; // 'student' | 'teacher' | 'full'
+
+function exportCurrentPreviewDocx() {
+  if (currentPreviewType === 'teacher') {
+    exportTeacherDocx();
+  } else if (currentPreviewType === 'full') {
+    exportFullBookDocx();
+  } else {
+    exportStudentDocx();
+  }
+}
+
 function openPrintPreview() {
+  currentPreviewType = 'student';
   const modalTitle = document.querySelector('#preview-modal .modal-title');
   if (modalTitle) modalTitle.textContent = "Anteprima Scheda Studente (Solo Esercizi Selezionati)";
   const modalContent = document.getElementById('modal-content');
@@ -763,6 +779,7 @@ function openFullBookPreview() {
     showNotificationToast("Nessun blocco didattico caricato.");
     return;
   }
+  currentPreviewType = 'full';
   const modalTitle = document.querySelector('#preview-modal .modal-title');
   if (modalTitle) modalTitle.textContent = `Fascicolo Completo Studenti (${BLOCKS_DATA.length} Unità Didattiche)`;
 
@@ -811,6 +828,7 @@ function buildTeacherGuideHtml() {
 }
 
 function openTeacherPreview() {
+  currentPreviewType = 'teacher';
   const modalTitle = document.querySelector('#preview-modal .modal-title');
   if (modalTitle) modalTitle.textContent = "Anteprima Guida Docente & Soluzioni";
   const modalContent = document.getElementById('modal-content');
@@ -2037,4 +2055,444 @@ Per la Sezione 5 di ogni scheda, progetta un'attività laboratoriale sempre dive
 Nella sezione finale riservata all'insegnante, garantisci sempre:
 - **Inquadramento rapido:** Riassunto denso ed esaustivo degli avvenimenti del blocco, utile al docente per rinfrescare i dettagli prima della lezione in classe.
 - **Risposte Modello complete:** Fornisci la risposta articolata attesa per ciascuna domanda aperta, l'elenco esatto V/F con la correzione completa delle affermazioni false, la stringa di abbinamento del lessico (es. \`1-D, 2-A, 3-E, 4-B, 5-C\`) e i criteri di osservazione per valutare l'attività speciale.\n`;
+}
+
+// ============================================================
+// 10. Modulo Esportazione DOCX (Word & Google Documenti)
+// ============================================================
+
+function xmlEscape(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function parseMarkdownRunsToDocx(text) {
+  let runsXml = "";
+  const tokens = [];
+  const regex = /(\*\*.*?\*\*|\*.*?\*|`.*?`)/g;
+  let lastIndex = 0;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      tokens.push({ type: 'normal', text: text.substring(lastIndex, match.index) });
+    }
+    const full = match[0];
+    if (full.startsWith('**') && full.endsWith('**')) {
+      tokens.push({ type: 'bold', text: full.slice(2, -2) });
+    } else if (full.startsWith('*') && full.endsWith('*')) {
+      tokens.push({ type: 'italic', text: full.slice(1, -1) });
+    } else if (full.startsWith('`') && full.endsWith('`')) {
+      tokens.push({ type: 'code', text: full.slice(1, -1) });
+    }
+    lastIndex = match.index + full.length;
+  }
+  if (lastIndex < text.length) {
+    tokens.push({ type: 'normal', text: text.substring(lastIndex) });
+  }
+
+  for (const t of tokens) {
+    if (!t.text) continue;
+    let rPr = "";
+    if (t.type === 'bold') rPr = "<w:b/>";
+    else if (t.type === 'italic') rPr = "<w:i/>";
+    else if (t.type === 'code') rPr = '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:shd w:val="clear" w:color="auto" w:fill="F1F5F9"/>';
+    runsXml += `<w:r>${rPr ? `<w:rPr>${rPr}</w:rPr>` : ""}<w:t xml:space="preserve">${xmlEscape(t.text)}</w:t></w:r>`;
+  }
+  return runsXml;
+}
+
+function markdownToWordXml(md) {
+  const lines = md.split(/\r?\n/);
+  const elements = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const rawLine = lines[i];
+    const line = rawLine.trim();
+
+    if (!line) {
+      i++;
+      continue;
+    }
+
+    // Header 1 (# ...)
+    if (line.startsWith('# ')) {
+      elements.push(`<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="160" w:after="100"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="32"/><w:color w:val="1E3A8A"/></w:rPr><w:t>${xmlEscape(line.slice(2).trim())}</w:t></w:r></w:p>`);
+      i++;
+      continue;
+    }
+
+    // Header 2 (## ...)
+    if (line.startsWith('## ')) {
+      elements.push(`<w:p><w:pPr><w:spacing w:before="200" w:after="80"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="26"/><w:color w:val="1E3A8A"/></w:rPr><w:t>${xmlEscape(line.slice(3).trim())}</w:t></w:r></w:p>`);
+      i++;
+      continue;
+    }
+
+    // Header 3 (### ...)
+    if (line.startsWith('### ')) {
+      elements.push(`<w:p><w:pPr><w:spacing w:before="160" w:after="80"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="23"/><w:color w:val="334155"/></w:rPr><w:t>${xmlEscape(line.slice(4).trim())}</w:t></w:r></w:p>`);
+      i++;
+      continue;
+    }
+
+    // Header 4 (#### ...)
+    if (line.startsWith('#### ')) {
+      elements.push(`<w:p><w:pPr><w:spacing w:before="120" w:after="60"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="22"/><w:color w:val="475569"/></w:rPr><w:t>${xmlEscape(line.slice(5).trim())}</w:t></w:r></w:p>`);
+      i++;
+      continue;
+    }
+
+    // Box Intestazione Studente
+    if (line.includes('Nome e Cognome') && (line.includes('Classe') || line.includes('Data'))) {
+      elements.push(`
+        <w:tbl>
+          <w:tblPr>
+            <w:tblW w:w="9638" w:type="dxa"/>
+            <w:tblBorders>
+              <w:top w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
+              <w:left w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
+              <w:bottom w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
+              <w:right w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
+            </w:tblBorders>
+            <w:tblCellMar>
+              <w:top w:w="120" w:type="dxa"/>
+              <w:left w:w="180" w:type="dxa"/>
+              <w:bottom w:w="120" w:type="dxa"/>
+              <w:right w:w="180" w:type="dxa"/>
+            </w:tblCellMar>
+          </w:tblPr>
+          <w:tr>
+            <w:tc>
+              <w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="F8FAFC"/></w:tcPr>
+              <w:p><w:pPr><w:spacing w:after="40"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>Nome e Cognome: </w:t></w:r><w:r><w:t>_____________________________________   </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>Classe: </w:t></w:r><w:r><w:t>_________   </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>Data: </w:t></w:r><w:r><w:t>_________</w:t></w:r></w:p>
+            </w:tc>
+          </w:tr>
+        </w:tbl>
+      `);
+      i++;
+      continue;
+    }
+
+    // Citazione (> ...)
+    if (line.startsWith('>')) {
+      const cleanQuote = line.replace(/^>\s*/, '').replace(/###\s*/, '');
+      elements.push(`
+        <w:p>
+          <w:pPr>
+            <w:ind w:left="400" w:right="400"/>
+            <w:pBdr><w:left w:val="single" w:sz="18" w:space="12" w:color="2563EB"/></w:pBdr>
+            <w:shd w:val="clear" w:color="auto" w:fill="F8FAFC"/>
+            <w:spacing w:before="120" w:after="160"/>
+          </w:pPr>
+          <w:r><w:rPr><w:i/><w:color w:val="475569"/></w:rPr><w:t xml:space="preserve">${xmlEscape(cleanQuote)}</w:t></w:r>
+        </w:p>
+      `);
+      i++;
+      continue;
+    }
+
+    // Box grafico / disegno
+    if (line.includes('[SPAZIO PER') || line.includes('SPAZIO RISERVATO AL DISEGNO') || line.includes('Spazio riservato al disegno')) {
+      elements.push(`
+        <w:tbl>
+          <w:tblPr>
+            <w:tblW w:w="9638" w:type="dxa"/>
+            <w:tblBorders>
+              <w:top w:val="single" w:sz="8" w:space="0" w:color="94A3B8"/>
+              <w:left w:val="single" w:sz="8" w:space="0" w:color="94A3B8"/>
+              <w:bottom w:val="single" w:sz="8" w:space="0" w:color="94A3B8"/>
+              <w:right w:val="single" w:sz="8" w:space="0" w:color="94A3B8"/>
+            </w:tblBorders>
+          </w:tblPr>
+          <w:tr>
+            <w:trPr><w:trHeight w:val="2800" w:hRule="atLeast"/></w:trPr>
+            <w:tc>
+              <w:tcPr>
+                <w:tcW w:w="9638" w:type="dxa"/>
+                <w:shd w:val="clear" w:color="auto" w:fill="F8FAFC"/>
+                <w:vAlign w:val="center"/>
+              </w:tcPr>
+              <w:p>
+                <w:pPr><w:jc w:val="center"/></w:pPr>
+                <w:r><w:rPr><w:color w:val="64748B"/><w:i/></w:rPr><w:t>✏️ Spazio riservato al disegno / rilievo grafico</w:t></w:r>
+              </w:p>
+            </w:tc>
+          </w:tr>
+        </w:tbl>
+      `);
+      i++;
+      continue;
+    }
+
+    // Righe di scrittura / compilazione manuale
+    if (/^[_\.]{15,}$/.test(line)) {
+      elements.push(`<w:p><w:pPr><w:pBdr><w:bottom w:val="dotted" w:sz="6" w:space="2" w:color="94A3B8"/></w:pBdr><w:spacing w:before="60" w:after="160"/></w:pPr><w:r><w:t></w:t></w:r></w:p>`);
+      i++;
+      continue;
+    }
+
+    // Tabelle Markdown (| ...)
+    if (line.startsWith('|')) {
+      const tableLines = [];
+      while (i < lines.length && lines[i].trim().startsWith('|')) {
+        tableLines.push(lines[i].trim());
+        i++;
+      }
+
+      if (tableLines.length >= 2) {
+        const rows = tableLines.filter(tl => !/^[\|\s\-:]+$/.test(tl));
+        let tblXml = `
+          <w:tbl>
+            <w:tblPr>
+              <w:tblW w:w="9638" w:type="dxa"/>
+              <w:tblBorders>
+                <w:top w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+                <w:left w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+                <w:bottom w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+                <w:right w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+                <w:insideH w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+                <w:insideV w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+              </w:tblBorders>
+              <w:tblCellMar>
+                <w:top w:w="100" w:type="dxa"/>
+                <w:left w:w="140" w:type="dxa"/>
+                <w:bottom w:w="100" w:type="dxa"/>
+                <w:right w:w="140" w:type="dxa"/>
+              </w:tblCellMar>
+            </w:tblPr>
+        `;
+
+        rows.forEach((rowStr, rIdx) => {
+          const rawCells = rowStr.replace(/^\|/, '').replace(/\|$/, '').split('|');
+          const isHeader = rIdx === 0;
+          tblXml += `<w:tr>`;
+          rawCells.forEach(cell => {
+            const cellText = cell.trim();
+            const bg = isHeader ? `<w:shd w:val="clear" w:color="auto" w:fill="F1F5F9"/>` : ``;
+            const align = isHeader ? `<w:jc w:val="center"/>` : ``;
+            const contentRuns = isHeader
+              ? `<w:r><w:rPr><w:b/></w:rPr><w:t>${xmlEscape(cellText)}</w:t></w:r>`
+              : parseMarkdownRunsToDocx(cellText);
+
+            tblXml += `
+              <w:tc>
+                <w:tcPr>${bg}<w:vAlign w:val="center"/></w:tcPr>
+                <w:p><w:pPr>${align}<w:spacing w:after="40"/></w:pPr>${contentRuns}</w:p>
+              </w:tc>
+            `;
+          });
+          tblXml += `</w:tr>`;
+        });
+        tblXml += `</w:tbl>`;
+        elements.push(tblXml);
+      }
+      continue;
+    }
+
+    // Separatore ---
+    if (/^-{3,}$/.test(line)) {
+      elements.push(`<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="8" w:color="E2E8F0"/></w:pBdr><w:spacing w:before="120" w:after="160"/></w:pPr><w:r><w:t></w:t></w:r></w:p>`);
+      i++;
+      continue;
+    }
+
+    // Elenco puntato (- o *)
+    if (/^[\-\*]\s+/.test(line)) {
+      const itemText = line.replace(/^[\-\*]\s+/, '');
+      elements.push(`<w:p><w:pPr><w:ind w:left="400"/><w:spacing w:after="60"/></w:pPr><w:r><w:t>• </w:t></w:r>${parseMarkdownRunsToDocx(itemText)}</w:p>`);
+      i++;
+      continue;
+    }
+
+    // Paragrafo standard
+    elements.push(`<w:p><w:pPr><w:spacing w:after="100"/></w:pPr>${parseMarkdownRunsToDocx(line)}</w:p>`);
+    i++;
+  }
+
+  return elements.join('\n');
+}
+
+async function buildDocxZipBlob(bodyXmlElements) {
+  if (typeof JSZip === 'undefined') {
+    throw new Error("Libreria JSZip non disponibile.");
+  }
+  const zip = new JSZip();
+
+  zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+  <Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>
+</Types>`);
+
+  zip.folder('_rels').file('.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`);
+
+  const wordFolder = zip.folder('word');
+  wordFolder.folder('_rels').file('document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>
+</Relationships>`);
+
+  wordFolder.file('settings.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:defaultTabStop w:val="720"/>
+</w:settings>`);
+
+  wordFolder.file('styles.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault>
+      <w:rPr>
+        <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>
+        <w:sz w:val="22"/>
+        <w:szCs w:val="22"/>
+        <w:color w:val="1E293B"/>
+        <w:lang w:val="it-IT"/>
+      </w:rPr>
+    </w:rPrDefault>
+    <w:pPrDefault>
+      <w:pPr>
+        <w:spacing w:after="140" w:line="276" w:lineRule="auto"/>
+      </w:pPr>
+    </w:pPrDefault>
+  </w:docDefaults>
+</w:styles>`);
+
+  const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    ${bodyXmlElements}
+    <w:sectPr>
+      <w:pgSz w:w="11906" w:h="16838"/>
+      <w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="720" w:footer="720" w:gutter="0"/>
+    </w:sectPr>
+  </w:body>
+</w:document>`;
+
+  wordFolder.file('document.xml', documentXml);
+
+  return await zip.generateAsync({
+    type: 'blob',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  });
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function exportStudentDocx() {
+  const block = BLOCKS_DATA.find(b => b.id === currentBlockId);
+  if (!block) {
+    showNotificationToast("Nessun blocco didattico selezionato.");
+    return;
+  }
+  const selectedExercises = block.exercises.filter(ex => selectedState[block.id] && selectedState[block.id].has(ex.id));
+  if (selectedExercises.length === 0) {
+    showNotificationToast("Nessun esercizio selezionato da esportare.");
+    return;
+  }
+
+  let md = `# SCHEDA DIDATTICA DI LETTURA E COMPRENSIONE\n`;
+  md += `## *${globalBookTitle}* — ${block.title}\n`;
+  md += `**Nome e Cognome dello studente:** ________________________________________  **Classe:** ____________  **Data:** ____________\n\n`;
+  if (block.welcomeNote) {
+    md += `> ### 🌊 Citazione\n> ${block.welcomeNote}\n\n`;
+  }
+  md += selectedExercises.map(ex => ex.rawMarkdown || '').join('\n\n---\n\n');
+  md += `\n\n---\n*Scuola Secondaria di Primo Grado — Scheda di Lavoro Individuale o di Coppia*\n`;
+
+  try {
+    showNotificationToast("⏳ Generazione file DOCX in corso...");
+    const xml = markdownToWordXml(md);
+    const blob = await buildDocxZipBlob(xml);
+    const safeName = (block.title || 'Scheda_Studenti').replace(/[^a-zA-Z0-9_\-]/g, '_');
+    downloadBlob(blob, `${safeName}_Studenti.docx`);
+    showNotificationToast(`📄 File "${safeName}_Studenti.docx" scaricato! Pronto per Google Drive e Word.`);
+  } catch (err) {
+    console.error(err);
+    showNotificationToast("Errore durante la generazione del file DOCX.");
+  }
+}
+
+async function exportTeacherDocx() {
+  const block = BLOCKS_DATA.find(b => b.id === currentBlockId);
+  if (!block) {
+    showNotificationToast("Nessun blocco didattico selezionato.");
+    return;
+  }
+  if (!block.teacherGuideMd || !block.teacherGuideMd.trim()) {
+    showNotificationToast("Nessuna guida per il docente presente in questa unità.");
+    return;
+  }
+
+  let md = `# GUIDA E SOLUZIONI PER IL DOCENTE\n`;
+  md += `## *${globalBookTitle}* — ${block.title}\n\n`;
+  md += block.teacherGuideMd.trim();
+
+  try {
+    showNotificationToast("⏳ Generazione file DOCX in corso...");
+    const xml = markdownToWordXml(md);
+    const blob = await buildDocxZipBlob(xml);
+    const safeName = (block.title || 'Guida_Docente').replace(/[^a-zA-Z0-9_\-]/g, '_');
+    downloadBlob(blob, `${safeName}_Guida_Docente.docx`);
+    showNotificationToast(`📄 File "${safeName}_Guida_Docente.docx" scaricato! Pronto per Google Drive e Word.`);
+  } catch (err) {
+    console.error(err);
+    showNotificationToast("Errore durante la generazione del file DOCX.");
+  }
+}
+
+async function exportFullBookDocx() {
+  if (!BLOCKS_DATA || BLOCKS_DATA.length === 0) {
+    showNotificationToast("Nessun blocco didattico caricato.");
+    return;
+  }
+
+  let md = `# FASCICOLO DIDATTICO COMPLETO\n`;
+  md += `## *${globalBookTitle}*\n\n`;
+
+  BLOCKS_DATA.forEach((block, idx) => {
+    const selectedExercises = block.exercises.filter(ex => selectedState[block.id] && selectedState[block.id].has(ex.id));
+    if (selectedExercises.length === 0) return;
+
+    if (idx > 0) md += `\n\n---\n\n`;
+    md += `# ${block.title}\n`;
+    md += `**Nome e Cognome dello studente:** ________________________________________  **Classe:** ____________  **Data:** ____________\n\n`;
+    if (block.welcomeNote) {
+      md += `> ### 🌊 Citazione\n> ${block.welcomeNote}\n\n`;
+    }
+    md += selectedExercises.map(ex => ex.rawMarkdown || '').join('\n\n---\n\n');
+  });
+
+  try {
+    showNotificationToast("⏳ Generazione fascicolo completo DOCX...");
+    const xml = markdownToWordXml(md);
+    const blob = await buildDocxZipBlob(xml);
+    const safeName = (globalBookTitle || 'Fascicolo_Didattico').replace(/[^a-zA-Z0-9_\-]/g, '_');
+    downloadBlob(blob, `${safeName}_Fascicolo_Completo_Studenti.docx`);
+    showNotificationToast(`📄 File "${safeName}_Fascicolo_Completo_Studenti.docx" scaricato!`);
+  } catch (err) {
+    console.error(err);
+    showNotificationToast("Errore durante la generazione del fascicolo DOCX.");
+  }
 }

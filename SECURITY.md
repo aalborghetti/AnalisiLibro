@@ -34,4 +34,3 @@ Se hai individuato una vulnerabilità di sicurezza (es. potenziale leak di dati 
 - **Valutazione e Piano di Rilascio:** entro 5 giorni lavorativi con il rilascio della patch su `main`.
 
 Grazie per contribuire a mantenere sicuro questo progetto!
-
