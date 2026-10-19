@@ -1,17 +1,88 @@
-# 🚀 Prompt di Avvio Analisi ed Elaborazione Autonoma
+# 🚀 Guida & Prompt Operativo per Gemini Notebook / NotebookLM
 
-Copia e incolla il testo sottostante per avviare l'elaborazione autonoma di qualsiasi libro in formato EPUB:
+Questo flusso di lavoro è progettato per operare **al 100% online** con **Google NotebookLM** o **Gemini**, eliminando la necessità di Python, VS Code o terminali di riga di comando.
+
+---
+
+## 📋 Istruzioni Passo dopo Passo
+
+1. **Apri Google NotebookLM o Gemini:**
+   - Vai su [NotebookLM](https://notebooklm.google.com/) e crea un nuovo taccuino (es. *"Analisi Romanzo - [Nome Libro]"*), oppure apri una sessione con **Gemini Advanced**.
+
+2. **Carica le Fonti nel Taccuino:**
+   - **Fonte 1 (Il Libro):** Carica il file del romanzo in formato **EPUB**, **PDF**, **Google Doc** o **TXT**.
+   - **Fonte 2 (Linee Guida):** Carica il file `contesto_didattico.md` presente in questo progetto (puoi trascinarlo direttamente o incollarlo come nota di testo).
+
+3. **Invia il Prompt:**
+   - Copia il prompt sottostante e incollalo nella chat di NotebookLM / Gemini.
+
+---
+
+## 💬 Prompt da Copiare e Incollare in Gemini / NotebookLM
 
 ```markdown
-Leggi attentamente il file `contesto_didattico.md` per assimilare il tuo ruolo di docente di lettere, il modello di ragionamento pedagogico e tutte le istruzioni operative. 
-Trovi il libro in formato `.epub` in questa cartella.
+Sei un docente esperto e appassionato di lettere della scuola secondaria di primo grado (studenti di 11-13 anni).
+Fai riferimento alle fonti caricate in questo taccuino: il testo integrale del romanzo e il file `contesto_didattico.md`.
 
-Procedi ora in piena autonomia attraverso tutte le fasi previste:
-1. Estrai il testo pulito dei capitoli eseguendo lo script universale `script/estrai_capitoli.py` ed esamina l'indice generale generato.
-2. Definisci la suddivisione dell'intera opera in blocchi logico-narrativi coerenti (unità di lettura ideali di circa 1.500 - 3.500 parole).
-3. Crea il file `schede_esercizi/dati_libro.md` riportando i metadati anagrafici del romanzo (titolo, autore, anno, editore, genere) come fonte unica di verità.
-4. Elabora in autonomia, blocco dopo blocco e senza attendere conferme intermedie, tutte le schede didattiche complete salvandole nella cartella `/schede_esercizi` (es. `blocco_01_esercizi.md`, `blocco_02_esercizi.md`, ...) rispettando la struttura, i vincoli e i criteri pedagogici stabiliti in `contesto_didattico.md`. Genera inoltre il file `schede_esercizi/manifest.json` con l'elenco dei file creati.
-5. Al termine, presenta l'applicazione interattiva `index.html` (utilizzabile sia in locale sia online su Netlify o GitHub Pages con caricamento automatico), fornendo un riassunto finale con i collegamenti a tutto il materiale prodotto.
+Il tuo obiettivo è analizzare l'intero libro e creare il percorso didattico completo, composto dalla scheda anagrafica dei metadati e dalle schede di lettura per ciascun blocco narrativo del romanzo, impaginate in Markdown puro e pronte per l'applicazione web di stampa.
 
-Avvia subito l'elaborazione della Fase 1 e prosegui con la generazione autonoma delle schede.
+Procedi con il seguente piano operativo:
+
+### FASE 1: Metadati del Libro & Mappatura dei Blocchi
+1. Genera il blocco anagrafico `dati_libro.md` nel formato esatto:
+   # Dati del Libro
+   - **Titolo:** [Titolo completo del romanzo]
+   - **Autore:** [Nome e cognome dell'autore]
+   - **Anno di pubblicazione:** [Anno di prima edizione]
+   - **Editore:** [Casa editrice]
+   - **Genere:** [Genere letterario]
+   - **Ambientazione:** [Luogo ed epoca della vicenda]
+   - **Target scolastico:** Scuola secondaria di primo grado (11-13 anni)
+   - **Unità didattiche:** [Numero complessivo di blocchi proposti]
+
+2. Mappa l'intera opera in unità didattiche equilibrate (circa 1.500 - 3.500 parole o 2-4 capitoli per blocco), elencando per ciascun blocco:
+   - Numero unità (es. Blocco 1, Blocco 2...)
+   - Capitoli inclusi con titoli esatti
+   - Sintesi del nucleo tematico pedagogico
+
+---
+
+### FASE 2: Generazione delle Schede Didattiche (Markdown Standard)
+Per ciascun blocco narrativo (cominciando dal Blocco 1), genera il codice Markdown completo rispettando rigorosamente la seguente struttura pedagogica e tipografica:
+
+1. **Intestazione:**
+   - Titolo: `# SCHEDA DIDATTICA DI LETTURA E COMPRENSIONE`
+   - Sottotitolo libro: `## *[Titolo del Romanzo]* di [Autore]`
+   - Sottotitolo unità: `### Unità Didattica X (Blocco X): *Capitolo A* – *Capitolo B*`
+   - Campi compilabili studente: `**Nome e Cognome dello studente:** ________________________________________`  
+     `**Classe:** ____________________  **Data:** ____________________`
+   - Citazione accogliente e motivante: `> ### 🌊 Titolo Citazione...`
+
+2. **1. Comprensione del Testo:**
+   - **A. Domande a risposta aperta:** 4 o 5 quesiti non mnemonici su cause-effetto, scelte etiche ed emozioni dei personaggi, seguiti da righe di risposta `_________________________________________________________________________________________`.
+   - **B. Vero o Falso? (Attenzione ai dettagli):** tabella Markdown standard a 3 colonne (`| Affermazione | V | F |`) con 5 affermazioni sottili e righe per motivare/correggere i falsi.
+
+3. **2. Analisi dei Personaggi e Riflessione:**
+   - **A. Analisi del Personaggio:** approfondimento psicologico sui conflitti interiori e sull'evoluzione morale.
+   - **B. Officina di Scrittura Creativa ed Empatia:** consegna di scrittura in prima persona (*"Mettiti nei panni di...", pagina di diario o lettera*).
+
+4. **3. Laboratorio Lessicale e Modi di Dire:**
+   - Tabella di corrispondenza (`| Termine | Abbinamento | Significato Contestuale |`) con 5 vocaboli complessi o d'autore usati nei capitoli e caselle `[ &nbsp;&nbsp; ]`.
+
+5. **4. Attività Speciale "Fuori dagli Schemi":**
+   - Esperienza laboratoriale originale: compito di realtà, mappa visiva, indagine o dibattito. Se prevede un disegno/schema, usa esattamente la dicitura `[SPAZIO PER IL TUO DISEGNO / RILIEVO GRAFICO]`.
+
+6. **5. Guida per il Docente & Soluzioni:**
+   - Inserisci un separatore `---` seguito dall'intestazione `### GUIDA E RIASSUNTO PER IL DOCENTE`.
+   - Sinossi narrativa puntuale dei capitoli del blocco.
+   - Chiavi di correzione e risposte modello complete per tutte le domande aperte, il Vero/Falso e il lessico.
+
+---
+
+### Vincoli Tipografici Fondamentali:
+- **NON** racchiudere le schede in blocchi di codice da programmatore (```).
+- **NON** usare ASCII-art, cornici o box simulati con caratteri (`+---+`, `| |`).
+- Usa le tabelle pipe standard Markdown con allineamento `:---` e `:---:`.
+
+Avvia ora l'elaborazione della **Fase 1** (Metadati e Mappatura) e genera subito la scheda didattica completa del **Blocco 1**.
 ```

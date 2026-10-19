@@ -13,20 +13,14 @@ Di seguito la struttura del progetto nella sua configurazione iniziale (prima de
 AnalisiLibro/
 ├── index.html                    # Applicazione web per selezione esercizi e stampa PDF (Netlify / Web / Locale)
 ├── style.css                     # Foglio di stile CSS (layout interfaccia, responsive mobile, tipografia, stampa A4)
+├── app.js                        # Controller applicativo JS (parser Markdown, caricamento cartelle, anteprima e stampa)
 ├── contesto_didattico.md         # Modello pedagogico, profilo docente, criteri di ragionamento e vincoli
 ├── prompt.md                     # Prompt chiavi in mano da fornire all'AI per avviare l'elaborazione
 ├── README.md                     # Manuale operativo completo e documentazione tecnica unificata
 │
-├── [nome_del_libro.epub]         # 📍 QUI VA INSERITO IL FILE EPUB DEL LIBRO DA ANALIZZARE
+├── [nome_del_libro.epub]         # 📍 QUI VA INSERITO IL FILE EPUB DEL LIBRO DA ANALIZZARE (opzionale)
 │
-├── script/                       # Moduli di automazione e codice applicativo
-│   ├── app.js                    # Controller applicativo JS (parser Markdown, caricamento cartelle, anteprima e stampa)
-│   └── estrai_capitoli.py        # Estrattore universale EPUB 2/3 con pulizia e de-sillabazione
-│
-├── testo_capitoli/               # [GENERATA] Conterrà i capitoli estratti in formato testo pulito (.txt)
-│   └── indice_capitoli.md        # [GENERATO] Indice generale con conteggio parole e caratteri per capitolo
-│
-└── schede_esercizi/              # [GENERATA] Conterrà le schede didattiche complete in Markdown (.md)
+└── schede_esercizi/              # [GENERATA DALL'AI] Conterrà le schede didattiche complete in Markdown (.md)
     ├── dati_libro.md             # [GENERATO] Metadati anagrafici del romanzo (titolo, autore, anno, editore)
     ├── blocco_01_esercizi.md
     ├── blocco_02_esercizi.md
@@ -44,75 +38,33 @@ Il file del libro in formato **`.epub`** deve essere posizionato **nella cartell
 
 ---
 
-## ⚙️ Come Funziona l'Elaborazione: Workflow Passo dopo Passo
+## ⚙️ Come Funziona l'Elaborazione: Workflow
 
-L'intero processo si articola in **3 passaggi sequenziali**, progettati per unire l'automazione tecnica all'intelligenza pedagogica:
+La piattaforma supporta due modalità operative:
+
+### 🌟 Modalità 1: 100% Online con Google NotebookLM / Gemini (Consigliata)
+Non richiede alcuna installazione di Python, VS Code o terminali:
+1. **Crea un taccuino** su [Google NotebookLM](https://notebooklm.google.com/) o apri **Gemini Advanced**.
+2. **Carica le Fonti:** il file del libro (EPUB, PDF, Doc) e il file `contesto_didattico.md`.
+3. **Incolla il Prompt** fornito in `prompt.md` (o accessibile direttamente dal pulsante `🤖 Prompt & Contesto` nel sito).
+4. **Gemini analizza l'opera e genera le schede didattiche:** produce i metadati (`dati_libro.md`) e tutte le schede in formato Markdown puro.
+5. **Apri l'applicazione web (`index.html`):** incolla le schede generate nell'editor web integrato con il pulsante `✏️ Modifica Markdown di questa unità` o `➕ Nuovo File .md`, visualizza l'anteprima istantanea, salva o stampa in PDF.
 
 ```mermaid
 flowchart TD
-    A["1. Posiziona il libro (.epub) nella cartella radice"] --> B["2. Esegui script/estrai_capitoli.py"]
-    B --> C["Cartella testo_capitoli/ popolata con .txt & indice_capitoli.md"]
-    C --> D["3. Avvia l'Agente AI con prompt.md + contesto_didattico.md"]
-    D --> E["Schede create in schede_esercizi/ (+ dati_libro.md)"]
-    E --> F["4. Apri index.html (in locale o su Netlify)"]
-    F --> G["5. Importa schede dal sito o trascina la cartella"]
-    G --> H["Stampa / Salva in PDF per Studenti o Docente"]
+    A["1. Carica libro (EPUB/PDF) + contesto_didattico.md su NotebookLM / Gemini"] --> B["2. Incolla il prompt da prompt.md"]
+    B --> C["3. Gemini genera metadati e schede didattiche in Markdown"]
+    C --> D["4. Apri l'app web e incolla/salva le schede nell'editor integrato"]
+    D --> E["5. Stampa o salva in PDF per Studenti o Docente"]
 ```
 
 ---
 
-### Passo 1: Estrazione del Testo Pulito dall'EPUB
+## 🤖 Come Generare le Schede Didattiche
 
-Apri il terminale nella cartella del progetto ed esegui lo script di estrazione:
+Fornisci all'agente AI (come Antigravity, NotebookLM, Gemini, Claude o ChatGPT) il prompt già pronto contenuto in [`prompt.md`](prompt.md) e la guida pedagogica [`contesto_didattico.md`](contesto_didattico.md).
 
-```bash
-python script/estrai_capitoli.py
-```
-
-#### Caratteristiche di Universalità dello Script (`estrai_capitoli.py`)
-Lo script è stato progettato per superare le consuete limitazioni dei parser rigidi e funzionare con **qualsiasi libro in formato EPUB**:
-
-1. **Riconoscimento delle specifiche EPUB (EPUB 2 / EPUB 3):**
-   - Individua dinamicamente il file descrittore `.opf` tramite il file standard `META-INF/container.xml`.
-   - Supporta sia la navigazione classica basata su `toc.ncx` (EPUB 2), sia il documento di navigazione moderno `nav.xhtml` (EPUB 3).
-   - In assenza di un indice esplicito, esegue un fallback intelligente sull'ordine di lettura dichiarato nello `<spine>` dell'OPF.
-
-2. **Supporto per architetture di file diverse:**
-   - **EPUB a file multipli:** libri in cui ogni capitolo è memorizzato in un file XHTML separato (es. `cap01.xhtml`, `cap02.xhtml`).
-   - **EPUB monolitici o a sezioni aggregate:** libri in cui più capitoli risiedono nello stesso file XHTML suddivisi da ancore interne (`id="filepos..."` o `<a name="...">`).
-
-3. **Pulizia e Normalizzazione Tipografica Avanzata:**
-   - **Ripristino delle parole spezzate (de-sillabazione tipografica):** ricollega i lemmi spezzati a fine riga tipici delle scansioni e delle impaginazioni cartacee (es. `cop-pino` → `coppino`, `som-merso` → `sommerso`), preservando le parole composte reali e i toponimi con trattino (es. `Milano-Firenze`, `Italia-Polonia`).
-   - **Eliminazione dei numeri di pagina spuri:** rimuove sia i paragrafi contenenti soli numeri di pagina isolati (es. `15`), sia i numeri rimasti incollati a fine periodo (es. `prima che 16` → `prima che`).
-   - **Riconnessione dei periodi spezzati:** riunisce le frasi interrotte a cavallo di cambi pagina forzati.
-   - **Rimozione di elementi di layout:** elimina tag `<img>`, stili inline, script e artefatti grafici non testuali.
-
-4. **Metadati e Catalogo Automatico:**
-   - Estrae titolo e autore dai metadati Dublin Core dell'EPUB.
-   - Salva ogni capitolo in formato `.txt` numerato in `testo_capitoli/`.
-   - Genera il file `testo_capitoli/indice_capitoli.md`, che fornisce una tabella riepilogativa con il titolo di ogni capitolo, il conteggio delle parole e dei caratteri.
-
-#### Opzioni da Riga di Comando per `estrai_capitoli.py`:
-- **Auto-rilevamento (consigliato):**
-  ```bash
-  python script/estrai_capitoli.py
-  ```
-- **Specificando il file EPUB manualmente:**
-  ```bash
-  python script/estrai_capitoli.py "Percorso/Del/Tuo/Libro.epub"
-  ```
-- **Personalizzando la cartella di output:**
-  ```bash
-  python script/estrai_capitoli.py "Percorso/Del/Tuo/Libro.epub" -o "mia_cartella_capitoli"
-  ```
-
----
-
-### Passo 2: Analisi Pedagogica e Generazione Autonoma delle Schede
-
-Fornisci all'agente AI (come Antigravity / Gemini) il prompt già pronto contenuto in [`prompt.md`](file:///c:/Ai/projects/AnalisiLibro/prompt.md).
-
-#### Come ragiona l'Agente AI:
+### Come ragiona l'Agente AI:
 1. **Assimilazione del ruolo docente:** L'agente consulta [`contesto_didattico.md`](file:///c:/Ai/projects/AnalisiLibro/contesto_didattico.md), assumendo l'identità di un docente di lettere appassionato ed esperto di didattica per la scuola secondaria di primo grado (11-13 anni).
 2. **Segmentazione dell'opera in blocchi narrativi:** Esamina l'indice generale dei capitoli generato e raggruppa l'intera opera in unità di lettura ideali (circa **1.500 – 3.500 parole** per blocco), garantendo la coerenza tematica ed evitando salti narrativi bruschi.
 3. **Estrazione dei metadati anagrafici (`dati_libro.md`):** Crea il file `schede_esercizi/dati_libro.md` riportando titolo, autore, anno, editore e genere. Questo file funge da unica fonte di verità per le intestazioni, eliminando qualsiasi logica complessa o ambigua di parsing.
@@ -160,8 +112,16 @@ Può essere utilizzata in due modalità:
    - **`🖨️ Stampa PDF`:** Genera il PDF formattato per stampa A4 con intestazione alunno, citazione e righe puntinate per scrivere le risposte a mano. **Esclude rigorosamente la guida del docente e le risposte.**
 4. **Gruppo Comandi DOCENTE:**
    - **`👁️ Anteprima`:** Mostra a video la sinossi narrativa, gli obiettivi didattici e il fascicolo di correzione con tutte le soluzioni.
-   - **`📘 Stampa Guida`:** Stampa o salva in PDF il documento riservato all'insegnante con sinossi, risposte modello e griglia di valutazione.
-5. **Formattazione tipografica avanzata del Lessico:**
+5. **Gruppo Comandi EDITOR MARKDOWN (`✏️ Modifica .MD`):**
+   - Permette di **modificare direttamente dal browser** qualsiasi file Markdown caricato (`dati_libro.md` e tutti i blocchi di esercizi `blocco_XX_esercizi.md`), oppure di crearne di nuovi.
+   - **Editor & Live Preview affiancata:** Visualizzazione flessibile (solo editor, anteprima live affiancata o solo anteprima) con rendering tipografico istantaneo.
+   - **Barra di formattazione rapida:** Inserimento con un clic di tabelle Vero/Falso, tabelle di abbinamento lessicale (`[   ]`), righe di scrittura per risposte manoscritte, box per disegni grafici e sezioni guida docente.
+   - **Salvataggio & Esportazione:**
+     - **`✅ Applica Modifiche` (Ctrl+S):** Rielabora istantaneamente il blocco, aggiorna gli esercizi e i conteggi, aggiorna l'anteprima e memorizza le modifiche in locale (`localStorage`).
+     - **`💾 Salva su Disco`:** Sfrutta le *File System Access API* (Chrome/Edge) per sovrascrivere direttamente il file `.md` nella cartella locale del computer.
+     - **`⬇️ Scarica File .md`:** Download universale del file aggiornato per salvarlo e sincronizzarlo su Git o Netlify.
+     - **`↩️ Ripristina Iniziale`:** Permette di ripristinare il file al suo contenuto originale iniziale in caso di errore.
+6. **Formattazione tipografica avanzata del Lessico:**
    - Le tabelle del laboratorio lessicale sono regolate con larghezze rigide (`table-layout: fixed`), garantendo che la colonna delle parole (25%) e quella delle corrispondenze (16%) mantengano dimensioni ideali.
    - I riquadri di risposta `[  ]` sono protetti da ritorni a capo (`white-space: nowrap`), risultando sempre perfetti e pronti per la compilazione manuale sia a schermo sia su carta A4.
 
@@ -169,6 +129,7 @@ Può essere utilizzata in due modalità:
 
 ## 🛠️ Requisiti Tecnici
 
-- **Python 3.7+**: Gli script fanno uso **esclusivo** della libreria standard di Python (`os`, `sys`, `json`, `glob`, `re`, `zipfile`, `xml.etree.ElementTree`, `html`). **Nessun pacchetto esterno da installare tramite `pip`.**
 - **Browser:** Qualsiasi browser moderno (Google Chrome, Microsoft Edge, Mozilla Firefox, Safari).
-- **Compatibilità OS:** Multipiattaforma (Windows, macOS, Linux).
+- **Compatibilità OS:** Multipiattaforma (Windows, macOS, Linux, ChromeOS, iPadOS, Android).
+- **Nessuna installazione richiesta:** Applicazione web client-side pura (HTML5, CSS3, Vanilla JavaScript moderno).
+

@@ -1,8 +1,25 @@
 # File del libro sorgente protetto da copyright
 *.epub
+*.pdf
 
-# File di sistema e temporanei
+# Variabili d'ambiente e segreti (protezione da leak accidentali)
+.env
+.env.*
+!.env.example
+*.env
+
+# IDE e configurazioni locali dell'editor
+.idea/
+.vscode/
+
+# Log, cache e file temporanei
+*.log
+*.tmp
+*.bak
+*.swp
 __pycache__/
 *.py[cod]
+
+# Sistema operativo
 .DS_Store
 Thumbs.db

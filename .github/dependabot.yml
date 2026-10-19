@@ -1,0 +1,10 @@
+version: 2
+updates:
+  # Monitoraggio delle versioni delle GitHub Actions (.github/workflows)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "github-actions"

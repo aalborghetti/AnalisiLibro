@@ -55,6 +55,17 @@
           📘 Stampa Guida
         </button>
       </div>
+
+      <!-- Gruppo Prompt & Contesto -->
+      <button class="btn btn-secondary" onclick="openPromptContextModal()" style="padding: 0.42rem 0.8rem; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 0.4rem; background: #ffffff; border-color: #cbd5e1;" title="Visualizza e scarica i file Prompt e Contesto Didattico">
+        <span>🤖</span>
+        <span>Prompt &amp; Contesto</span>
+      </button>
+
+      <!-- Pulsante Istruzioni README (?) -->
+      <button class="btn btn-help" id="btn-help" onclick="openHelpModal()" title="Istruzioni di utilizzo (README.md)" aria-label="Istruzioni di utilizzo">
+        <span class="help-question-mark">?</span>
+      </button>
     </div>
   </header>
 
@@ -106,6 +117,11 @@
           <p class="hero-summary" id="hero-summary">
             Le schede didattiche vengono importate automaticamente all'avvio.
           </p>
+          <div style="margin-top: 0.85rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button class="btn btn-secondary" style="font-size: 0.82rem; padding: 0.4rem 0.8rem; background: #ffffff; border-color: #cbd5e1; display: inline-flex; align-items: center; gap: 0.4rem;" onclick="openMdEditor(currentBlockId)">
+              ✏️ Modifica Markdown di questa unità
+            </button>
+          </div>
         </div>
       </section>
 
@@ -152,8 +168,173 @@
     </div>
   </div>
 
+  <!-- Modal for Markdown File Editor -->
+  <div class="modal-overlay" id="editor-modal">
+    <div class="modal-window editor-window">
+      
+      <!-- Editor Header -->
+      <div class="modal-header editor-header">
+        <div class="editor-header-left">
+          <div class="modal-title" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <span>✏️ Editor Markdown</span>
+            <span id="editor-dirty-badge" class="dirty-badge" style="display: none;">● Modificato non salvato</span>
+          </div>
+          <div class="editor-file-picker">
+            <label for="editor-file-select" style="font-size: 0.8rem; font-weight: 600; color: #475569;">File:</label>
+            <select id="editor-file-select" class="editor-select" onchange="handleEditorFileSelectChange(this.value)">
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+        </div>
+
+        <div class="editor-header-right">
+          <!-- View switcher tabs -->
+          <div class="editor-view-switcher">
+            <button type="button" class="view-btn active" id="btn-view-editor" onclick="setEditorViewMode('editor')">📝 Editor</button>
+            <button type="button" class="view-btn" id="btn-view-split" onclick="setEditorViewMode('split')">🌗 Divisa</button>
+            <button type="button" class="view-btn" id="btn-view-preview" onclick="setEditorViewMode('preview')">👁️ Anteprima</button>
+          </div>
+          <button class="btn btn-secondary" onclick="closeMdEditor()">✕ Chiudi</button>
+        </div>
+      </div>
+
+      <!-- Quick Formatting Helper Toolbar -->
+      <div class="editor-quickbar">
+        <div class="quickbar-group">
+          <button type="button" class="quick-btn" onclick="insertEditorSnippet('bold')" title="Grassetto (**testo**)"><strong>B</strong></button>
+          <button type="button" class="quick-btn" onclick="insertEditorSnippet('italic')" title="Corsivo (*testo*)"><em>I</em></button>
+          <button type="button" class="quick-btn" onclick="insertEditorSnippet('h2')" title="Titolo Sezione (##)">H2</button>
+          <button type="button" class="quick-btn" onclick="insertEditorSnippet('h3')" title="Sottotitolo (###)">H3</button>
+          <button type="button" class="quick-btn" onclick="insertEditorSnippet('quote')" title="Citazione (&gt; Citazione)">&ldquo;&rdquo;</button>
+        </div>
+        <div class="quickbar-divider"></div>
+        <div class="quickbar-group">
+          <button type="button" class="quick-btn" onclick="insertEditorSnippet('vf_table')" title="Tabella Vero / Falso">📊 Tabella V/F</button>
+          <button type="button" class="quick-btn" onclick="insertEditorSnippet('match_table')" title="Tabella Abbinamento / Corrispondenza">🔗 Tabella Abbinamento</button>
+          <button type="button" class="quick-btn" onclick="insertEditorSnippet('lines')" title="Righe risposta per studenti">📝 Righe Risposta</button>
+          <button type="button" class="quick-btn" onclick="insertEditorSnippet('drawing')" title="Spazio per disegno grafico">✏️ Spazio Disegno</button>
+          <button type="button" class="quick-btn" onclick="insertEditorSnippet('teacher_guide')" title="Sezione Guida Docente">📘 Guida Docente</button>
+        </div>
+      </div>
+
+      <!-- Main Editor Body (Split or Single) -->
+      <div class="modal-body editor-body" id="editor-body">
+        <!-- Editor Pane -->
+        <div class="editor-pane" id="editor-pane">
+          <textarea id="editor-textarea" spellcheck="false" placeholder="Scrivi o modifica qui il codice Markdown..." oninput="handleEditorInput()"></textarea>
+        </div>
+
+        <!-- Live Preview Pane -->
+        <div class="editor-preview-pane" id="editor-preview-pane">
+          <div class="preview-inner" id="editor-preview-content">
+            <!-- Rendered live markdown preview -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Editor Footer -->
+      <div class="modal-footer editor-footer">
+        <div class="editor-footer-left">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="revertEditorCurrentFile()" title="Ripristina il contenuto iniziale del file">
+            ↩️ Ripristina Iniziale
+          </button>
+          <span id="editor-stats" class="editor-stats">0 caratteri</span>
+        </div>
+
+        <div class="editor-footer-right">
+          <button type="button" class="btn btn-secondary" onclick="downloadCurrentEditorFile()" title="Scarica il file .md modificato">
+            ⬇️ Scarica File .md
+          </button>
+          <button type="button" class="btn btn-secondary" id="btn-save-picker" onclick="saveDirectToFileSystem()" title="Salva o sovrascrivi direttamente su disco">
+            💾 Salva su Disco
+          </button>
+          <button type="button" class="btn btn-primary" onclick="applyEditorChanges()" title="Applica subito le modifiche all'applicazione e all'anteprima (Ctrl+S)">
+            ✅ Applica Modifiche
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal for README / Help Instructions -->
+  <div class="modal-overlay" id="help-modal">
+    <div class="modal-window help-window">
+      <div class="modal-header">
+        <div class="modal-title" style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.2rem;">📖</span>
+          <span>Guida & Istruzioni di Utilizzo</span>
+        </div>
+        <button class="btn btn-secondary" onclick="closeHelpModal()">✕ Chiudi</button>
+      </div>
+      <div class="modal-body help-body" id="help-content">
+        <div style="text-align: center; padding: 3rem; color: #64748b;">
+          Caricamento istruzioni dal file README.md in corso...
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeHelpModal()">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Prompt & Didactic Context Viewer/Downloader -->
+  <div class="modal-overlay" id="prompt-context-modal">
+    <div class="modal-window help-window">
+      <div class="modal-header" style="flex-wrap: wrap; gap: 0.75rem;">
+        <div class="modal-title" style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.2rem;">🤖</span>
+          <span>File di Configurazione &amp; AI</span>
+        </div>
+
+        <!-- File Switcher Tabs -->
+        <div class="editor-view-switcher" style="background: #e2e8f0;">
+          <button type="button" class="view-btn active" id="btn-tab-prompt" onclick="switchPromptContextTab('prompt')">
+            🚀 prompt.md
+          </button>
+          <button type="button" class="view-btn" id="btn-tab-context" onclick="switchPromptContextTab('context')">
+            🎓 contesto_didattico.md
+          </button>
+        </div>
+
+        <button class="btn btn-secondary" onclick="closePromptContextModal()">✕ Chiudi</button>
+      </div>
+
+      <!-- Action subbar -->
+      <div style="background: #f8fafc; border-bottom: 1px solid var(--border); padding: 0.6rem 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+        <span id="prompt-context-subtitle" style="font-size: 0.85rem; color: #475569; font-weight: 500;">
+          Prompt chiavi in mano da fornire all'Agente AI per avviare l'elaborazione autonoma del libro.
+        </span>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="copyCurrentPromptContextText()" title="Copia l'intero testo negli appunti">
+            📋 Copia Testo
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="downloadCurrentPromptContextFile()" title="Scarica questo file .md sul tuo computer">
+            ⬇️ Scarica File .md
+          </button>
+        </div>
+      </div>
+
+      <!-- Content Viewer Body -->
+      <div class="modal-body help-body" id="prompt-context-content">
+        <!-- Rendered markdown content -->
+      </div>
+
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="downloadBothPromptAndContext()" title="Scarica sia prompt.md che contesto_didattico.md">
+            📦 Scarica Entrambi i File
+          </button>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <button type="button" class="btn btn-primary" onclick="closePromptContextModal()">Chiudi</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- UNIVERSAL CLIENT-SIDE MARKDOWN PARSER & CONTROLLER -->
   <!-- Logica Applicativa Client-Side -->
-  <script src="script/app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

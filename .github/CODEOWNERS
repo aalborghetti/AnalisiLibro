@@ -1,0 +1,4 @@
+# Regole di titolarità del codice (Code Ownership)
+# Assegna automaticamente la revisione di tutte le PR al maintainer del progetto.
+
+* @aalborghetti
