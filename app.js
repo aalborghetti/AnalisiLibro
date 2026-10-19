@@ -1,6 +1,6 @@
 /**
  * Generatore Schede Didattiche - Logica Client-Side (GitHub Pages & Locale)
- * Parser Markdown universale, selezione esercizi, anteprima e stampa PDF
+ * Parser Markdown universale, selezione esercizi, anteprima, supporto DSA/BES e stampa PDF
  */
 
 // Stato dell'applicazione
@@ -9,6 +9,7 @@ let currentBlockId = null;
 const selectedState = {};
 let globalBookTitle = "Schede Didattiche di Lettura";
 let globalBookAuthor = "";
+let isDsaMode = false;
 
 // Cache dei file Markdown raw (in memoria)
 const RAW_FILES_CACHE = new Map();
@@ -18,12 +19,17 @@ let isEditorDirty = false;
 let editorViewMode = 'split'; // 'editor' | 'split' | 'preview'
 let editorPreviewDebounceTimer = null;
 
+// Sanitizza il nome file per creare ID DOM sicuri (anche con apostrofi o spazi)
+function makeSafeId(str) {
+  return String(str).replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
 // 1. Markdown Parser per Schede Didattiche
 function parseWorksheetMarkdown(filename, rawMd) {
-  const lines = rawMd.split('\n');
-  let bookTitle = "";
+  let bookTitle = globalBookTitle;
   let blockTitle = "";
   let welcomeNote = "";
+  const safeFileId = makeSafeId(filename);
   
   // Separa i contenuti dello studente dalla guida docente
   let studentMd = rawMd;
@@ -34,9 +40,6 @@ function parseWorksheetMarkdown(filename, rawMd) {
     studentMd = teacherParts[0];
     teacherGuideMd = teacherParts[1];
   }
-
-  // Titolo del libro gestito centralmente da dati_libro.md
-  bookTitle = globalBookTitle;
 
   // Ricava il titolo del blocco da "### Titolo..." o dal primo H1
   const blockMatch = rawMd.match(/^###\s+(?:Unità\s+Didattica\s+[0-9]+|Blocco\s+[0-9]+|[^\n]+:\s*)(.+)$/m) || rawMd.match(/^#\s+(.+)$/m);
@@ -73,40 +76,42 @@ function parseWorksheetMarkdown(filename, rawMd) {
     const titleLower = current.title.toLowerCase();
     let type = "comprensione";
     let typeLabel = "Comprensione del Testo";
+    let desc = "Quesiti di comprensione profonda, relazioni causa-effetto e vero/falso.";
     let defaultSelected = true;
 
     if (titleLower.includes("vero o falso") || titleLower.includes("v/f")) {
       type = "vf";
       typeLabel = "Vero o Falso";
+      desc = "Verifica dell'attenzione ai dettagli narrativi e correzione delle affermazioni false.";
     } else if (titleLower.includes("comprensione")) {
       type = "comprensione";
       typeLabel = "Comprensione del Testo";
-      defaultSelected = true;
+      desc = "Domande a risposta aperta sugli snodi narrativi e verifica Vero/Falso.";
     } else if (titleLower.includes("analisi") || titleLower.includes("personagg")) {
       type = "analisi";
       typeLabel = "Analisi Personaggi";
-      defaultSelected = true;
+      desc = "Riflessione psicologica sui conflitti interiori e sulle scelte etiche dei protagonisti.";
     } else if (titleLower.includes("scrittura") || titleLower.includes("officina") || titleLower.includes("immedesimazione") || titleLower.includes("empatia")) {
       type = "scrittura";
       typeLabel = "Officina di Scrittura";
-      defaultSelected = true;
+      desc = "Traccia di immedesimazione personale in prima persona, pagina di diario o lettera.";
     } else if (titleLower.includes("lessico") || titleLower.includes("linguaggio") || titleLower.includes("parole")) {
       type = "lessico";
       typeLabel = "Laboratorio Lessicale";
-      defaultSelected = true;
-    } else if (titleLower.includes("speciale") || titleLower.includes("schemi") || titleLower.includes("estemporane") || titleLower.includes("compito di realtà")) {
+      desc = "Abbinamento di vocaboli complessi e modi di dire d'autore al significato contestuale.";
+    } else if (titleLower.includes("speciale") || titleLower.includes("schemi") || titleLower.includes("estemporane") || titleLower.includes("compito di realtà") || titleLower.includes("rilievo")) {
       type = "speciale";
       typeLabel = "Attività Speciale";
-      defaultSelected = true;
+      desc = "Esperienza laboratoriale creativa, mappa visiva, indagine o rilievo grafico.";
     }
 
-    // Sezione combinata Analisi del Personaggio + Scrittura Creativa
+    // Retrocompatibilità: Sezione combinata Analisi del Personaggio + Scrittura Creativa nello stesso H2
     const analSplitRegex = /(?:###\s+B\.\s+|####\s+(?:Spazio\s+)?Scrittura)/i;
     if (type === "analisi" && analSplitRegex.test(sectionChunk)) {
       const parts = sectionChunk.split(analSplitRegex);
       if (parts.length > 1) {
         exercises.push({
-          id: `${filename}_sec_${i}_a`,
+          id: `${safeFileId}_sec_${i}_a`,
           type: "analisi",
           typeLabel: "Analisi Personaggi",
           title: "Analisi del Personaggio e Riflessione",
@@ -115,7 +120,7 @@ function parseWorksheetMarkdown(filename, rawMd) {
           contentHtml: markdownToHtml(parts[0])
         });
         exercises.push({
-          id: `${filename}_sec_${i}_b`,
+          id: `${safeFileId}_sec_${i}_b`,
           type: "scrittura",
           typeLabel: "Officina di Scrittura",
           title: "Spunto di Scrittura Creativa ed Empatia",
@@ -128,11 +133,11 @@ function parseWorksheetMarkdown(filename, rawMd) {
     }
 
     exercises.push({
-      id: `${filename}_sec_${i}`,
+      id: `${safeFileId}_sec_${i}`,
       type: type,
       typeLabel: typeLabel,
       title: current.title.replace(/^[0-9]+\.\s*/, ''),
-      desc: "Esercizio tratto dalla scheda didattica del blocco.",
+      desc: desc,
       defaultSelected: defaultSelected,
       contentHtml: markdownToHtml(sectionChunk)
     });
@@ -156,7 +161,7 @@ function parseWorksheetMarkdown(filename, rawMd) {
   };
 }
 
-// Formattatore Markdown -> HTML con filtri di pulizia
+// Formattatore Markdown -> HTML con filtri di pulizia e conteggio righe reale
 function markdownToHtml(md, wrapperClass = 'doc-section') {
   let h = md;
   // Pulizia artefatti: blocchi ```, righe di ===, +---+, e ---
@@ -182,8 +187,13 @@ function markdownToHtml(md, wrapperClass = 'doc-section') {
   h = h.replace(/\$\\leftarrow\$/g, '←');
   h = h.replace(/\\leftarrow/g, '←');
   h = h.replace(/<--/g, '←');
-  // Righe di quaderno per risposta scritta
-  h = h.replace(/(?:_{5,}\s*)+/g, '<div class="write-lines"><div class="write-line"></div><div class="write-line"></div></div>');
+
+  // Righe di quaderno per risposta scritta: rispetta il numero esatto di righe '_' presenti nel Markdown
+  h = h.replace(/((?:_{5,}[ \t]*\r?\n?)+)/g, (match) => {
+    const count = (match.match(/_{5,}/g) || []).length;
+    const linesHtml = '<div class="write-line"></div>'.repeat(Math.max(1, count));
+    return `\n\n<div class="write-lines">${linesHtml}</div>\n\n`;
+  });
   
   // Tabelle Markdown
   h = h.replace(/((?:^[ \t]*\|.+\|[ \t]*(?:\r?\n|$))+)/gm, function(tableBlock) {
@@ -191,7 +201,7 @@ function markdownToHtml(md, wrapperClass = 'doc-section') {
     if (rawLines.length === 0) return tableBlock;
 
     const blockTextLower = tableBlock.toLowerCase();
-    const isMatchingTable = blockTextLower.includes('corrispondenza') || blockTextLower.includes('[') || blockTextLower.includes('abbinamento');
+    const isMatchingTable = blockTextLower.includes('corrispondenza') || blockTextLower.includes('abbinamento');
 
     let theadHtml = '';
     let tbodyHtml = '';
@@ -240,15 +250,31 @@ function markdownToHtml(md, wrapperClass = 'doc-section') {
   h = h.replace(/^[ \t]*[-*]\s+\[\s*([xX\s]?)\s*\]\s+(.+)$/gm, '<div style="margin: 0.35rem 0; padding-left: 0.5rem;"><strong>[ $1 ]</strong> $2</div>');
   h = h.replace(/^[ \t]*[-*]\s+(.+)$/gm, '<li style="margin-left: 1.25rem; margin-bottom: 0.25rem;">$1</li>');
 
-  // Paragrafi
-  const rawParagraphs = h.split(/\n\s*\n/);
-  const cleanP = rawParagraphs.map(p => {
-    p = p.trim();
-    if (!p || p.startsWith('<div') || p.startsWith('<table') || p.startsWith('<h3')) return p;
-    return `<p style="margin-bottom: 0.65rem;">${p.replace(/\n/g, '<br>')}</p>`;
-  });
+  // Paragrafi e raggruppamento domande numerate (.doc-question) per evitare salti pagina tra domanda e righe
+  const rawParagraphs = h.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  const finalBlocks = [];
 
-  return `<div class="${wrapperClass}">${cleanP.join('\n')}</div>`;
+  for (let i = 0; i < rawParagraphs.length; i++) {
+    let p = rawParagraphs[i];
+    const isBlockTag = p.startsWith('<div') || p.startsWith('<table') || p.startsWith('<h3') || p.startsWith('<h4');
+    const isNumberedQuestion = /^[0-9]+\.\s+/.test(p);
+
+    if (!isBlockTag) {
+      p = `<p style="margin-bottom: 0.5rem;">${p.replace(/\n/g, '<br>')}</p>`;
+    }
+
+    // Se è una domanda numerata ed è seguita da .write-lines, avvolgile insieme in .doc-question
+    if (isNumberedQuestion && i + 1 < rawParagraphs.length && rawParagraphs[i + 1].startsWith('<div class="write-lines">')) {
+      finalBlocks.push(`<div class="doc-question">${p}\n${rawParagraphs[i + 1]}</div>`);
+      i++; // Salta il blocco .write-lines già incluso
+    } else if (isNumberedQuestion) {
+      finalBlocks.push(`<div class="doc-question">${p}</div>`);
+    } else {
+      finalBlocks.push(p);
+    }
+  }
+
+  return `<div class="${wrapperClass}">${finalBlocks.join('\n')}</div>`;
 }
 
 // 2. Caricamento e Parsing dei Dataset (in memoria)
@@ -258,7 +284,6 @@ function loadRawWorksheets(worksheetsArray) {
     return;
   }
 
-  // Popola la cache dei file raw in memoria
   RAW_FILES_CACHE.clear();
   worksheetsArray.forEach(item => {
     RAW_FILES_CACHE.set(item.filename, item.markdown);
@@ -282,7 +307,6 @@ function loadRawWorksheets(worksheetsArray) {
   }
 
   BLOCKS_DATA = [];
-  // Escludi dati_libro.md dai blocchi didattici degli esercizi
   const exerciseSheets = worksheetsArray.filter(item => !item.filename || item.filename.toLowerCase() !== 'dati_libro.md');
 
   if (exerciseSheets.length === 0) {
@@ -295,7 +319,6 @@ function loadRawWorksheets(worksheetsArray) {
     parsed.id = index + 1;
     BLOCKS_DATA.push(parsed);
 
-    // Seleziona di default TUTTI gli esercizi per ogni blocco (o preserva se già esistente)
     if (!selectedState[parsed.id] || selectedState[parsed.id].size === 0) {
       selectedState[parsed.id] = new Set(
         parsed.exercises.map(ex => ex.id)
@@ -303,7 +326,6 @@ function loadRawWorksheets(worksheetsArray) {
     }
   });
 
-  // Mostra i componenti principali e nascondi il banner dropzone
   const dropzone = document.getElementById('dropzone-banner');
   if (dropzone) dropzone.style.display = 'none';
   const hero = document.getElementById('block-hero');
@@ -313,12 +335,10 @@ function loadRawWorksheets(worksheetsArray) {
   const grid = document.getElementById('exercises-grid');
   if (grid) grid.style.display = 'flex';
 
-  // Aggiorna l'intestazione
   document.getElementById('app-book-title').textContent = globalBookTitle;
   document.getElementById('app-book-subtitle').textContent = `Caricate ${BLOCKS_DATA.length} unità didattiche (${exerciseSheets.length} file elaborati)`;
   document.getElementById('blocks-count-badge').textContent = `${BLOCKS_DATA.length} Unità`;
 
-  // Seleziona il blocco attivo
   if (!currentBlockId || !BLOCKS_DATA.some(b => b.id === currentBlockId)) {
     currentBlockId = BLOCKS_DATA[0].id;
   }
@@ -342,7 +362,6 @@ function showEmptyState() {
   document.getElementById('blocks-count-badge').textContent = "0 Unità";
 }
 
-// Notifiche Toast
 function showNotificationToast(msg) {
   let toast = document.getElementById('app-toast');
   if (!toast) {
@@ -358,48 +377,71 @@ function showNotificationToast(msg) {
   }, 3500);
 }
 
-// 3. Caricamento Silenzioso all'Avvio (schede_esercizi/)
+// 3. Caricamento Silenzioso all'Avvio (schede_esercizi/) senza generare decine di 404
 async function tryAutoLoadFromServer() {
+  if (window.location.protocol === 'file:') return false;
+
   try {
     let fileList = [];
 
-    // Prova prima a recuperare la lista dei file da manifest.json
+    // 1. Prova prima a recuperare la lista dei file da manifest.json
     try {
       const manifestRes = await fetch('schede_esercizi/manifest.json');
       if (manifestRes.ok) {
         const manifestData = await manifestRes.json();
         if (Array.isArray(manifestData)) {
           fileList = manifestData;
-        } else if (manifestData.files && Array.isArray(manifestData.files)) {
+        } else if (manifestData && Array.isArray(manifestData.files)) {
           fileList = manifestData.files;
         }
       }
     } catch (_) {}
 
-    // Fallback su probing automatico
-    if (!fileList || fileList.length === 0) {
-      fileList = ['dati_libro.md'];
-      for (let i = 1; i <= 30; i++) {
-        fileList.push(`blocco_${String(i).padStart(2, '0')}_esercizi.md`);
-      }
-    }
+    const worksheets = [];
 
-    // Scarica i file presenti in parallelo
-    const fetchPromises = fileList.map(async (filename) => {
+    if (fileList.length > 0) {
+      const fetchPromises = fileList.map(async (filename) => {
+        try {
+          const res = await fetch(`schede_esercizi/${filename}`);
+          if (res.ok) {
+            const text = await res.text();
+            if (text && text.trim().length > 0) {
+              return { filename, markdown: text };
+            }
+          }
+        } catch (_) {}
+        return null;
+      });
+      const results = await Promise.all(fetchPromises);
+      worksheets.push(...results.filter(Boolean));
+    } else {
+      // 2. Fallback sequenziale intelligente: si ferma subito al primo 404 evitando 30 chiamate a vuoto
       try {
-        const res = await fetch(`schede_esercizi/${filename}`);
-        if (res.ok) {
-          const text = await res.text();
+        const datiRes = await fetch('schede_esercizi/dati_libro.md');
+        if (datiRes.ok) {
+          const text = await datiRes.text();
           if (text && text.trim().length > 0) {
-            return { filename, markdown: text };
+            worksheets.push({ filename: 'dati_libro.md', markdown: text });
           }
         }
       } catch (_) {}
-      return null;
-    });
 
-    const results = await Promise.all(fetchPromises);
-    const worksheets = results.filter(Boolean);
+      for (let i = 1; i <= 30; i++) {
+        const filename = `blocco_${String(i).padStart(2, '0')}_esercizi.md`;
+        try {
+          const res = await fetch(`schede_esercizi/${filename}`);
+          if (!res.ok) break; // Interrompe immediatamente il ciclo al primo blocco non trovato
+          const text = await res.text();
+          if (text && text.trim().length > 0) {
+            worksheets.push({ filename, markdown: text });
+          } else {
+            break;
+          }
+        } catch (_) {
+          break;
+        }
+      }
+    }
 
     if (worksheets.length > 0) {
       worksheets.sort((a, b) => a.filename.localeCompare(b.filename));
@@ -458,7 +500,6 @@ function processMdFiles(files) {
   });
 }
 
-// Supporto Drag & Drop ricorsivo per intere cartelle
 async function getFilesFromDataTransferItems(items) {
   const fileEntries = [];
   const queue = [];
@@ -518,8 +559,8 @@ function renderSidebar() {
         <span class="block-badge">BLOCCO ${block.id}</span>
         <span class="selection-counter">${selectedCount}/${totalCount} scelti</span>
       </div>
-      <div class="block-title">${block.title}</div>
-      <div class="block-chapters">📁 ${block.filename}</div>
+      <div class="block-title">${escapeHtml(block.title)}</div>
+      <div class="block-chapters">📁 ${escapeHtml(block.filename)}</div>
     `;
     container.appendChild(el);
   });
@@ -530,7 +571,6 @@ function selectBlock(id) {
   renderSidebar();
   renderActiveBlock();
   
-  // Su dispositivi mobili, centra dolcemente il blocco attivo nella barra orizzontale
   if (window.innerWidth <= 900) {
     setTimeout(() => {
       const activeEl = document.querySelector('.block-item.active');
@@ -547,7 +587,7 @@ function renderActiveBlock() {
 
   document.getElementById('hero-title').textContent = block.title;
   document.getElementById('hero-meta').innerHTML = `
-    <span>📖 <strong>File:</strong> ${block.filename}</span>
+    <span>📖 <strong>File:</strong> ${escapeHtml(block.filename)}</span>
     <span>📑 <strong>Esercizi disponibili:</strong> ${block.exercises.length}</span>
   `;
   document.getElementById('hero-summary').textContent = block.welcomeNote || "Seleziona gli esercizi che intendi includere nella scheda di lavoro per gli studenti.";
@@ -566,11 +606,6 @@ function renderActiveBlock() {
     const isSelected = selectedState[block.id].has(ex.id);
     const card = document.createElement('div');
     card.className = `exercise-card ${isSelected ? 'selected' : ''}`;
-    card.onclick = (e) => {
-      if (e.target.tagName.toLowerCase() !== 'input') {
-        toggleExercise(ex.id);
-      }
-    };
 
     let tagClass = 'tag-comprensione';
     if (ex.type === 'vf') tagClass = 'tag-vf';
@@ -581,22 +616,32 @@ function renderActiveBlock() {
 
     card.innerHTML = `
       <div class="exercise-checkbox-wrapper">
-        <input type="checkbox" class="custom-checkbox" ${isSelected ? 'checked' : ''} onchange="toggleExercise('${ex.id}')">
+        <input type="checkbox" class="custom-checkbox" ${isSelected ? 'checked' : ''}>
       </div>
       <div class="exercise-body">
         <div class="exercise-header">
-          <span class="exercise-tag ${tagClass}">${ex.typeLabel}</span>
+          <span class="exercise-tag ${tagClass}">${escapeHtml(ex.typeLabel)}</span>
         </div>
-        <div class="exercise-title">${ex.title}</div>
-        <div class="exercise-desc">${ex.desc}</div>
+        <div class="exercise-title">${escapeHtml(ex.title)}</div>
+        <div class="exercise-desc">${escapeHtml(ex.desc)}</div>
       </div>
     `;
+
+    const checkbox = card.querySelector('input[type="checkbox"]');
+    checkbox.addEventListener('change', () => toggleExercise(ex.id));
+    card.addEventListener('click', (e) => {
+      if (e.target !== checkbox) {
+        toggleExercise(ex.id);
+      }
+    });
+
     grid.appendChild(card);
   });
 }
 
 function toggleExercise(exerciseId) {
   const set = selectedState[currentBlockId];
+  if (!set) return;
   if (set.has(exerciseId)) {
     set.delete(exerciseId);
   } else {
@@ -620,14 +665,17 @@ function deselectAll() {
   renderSidebar();
 }
 
-function selectRecommended() {
+// Filtro rapido per alunni con BES / verifiche semplificate (Comprensione, V/F e Lessico)
+function selectEssentialBes() {
   const block = BLOCKS_DATA.find(b => b.id === currentBlockId);
   if (!block) return;
+  const essentialTypes = new Set(['comprensione', 'vf', 'lessico']);
   selectedState[block.id] = new Set(
-    block.exercises.filter(e => e.defaultSelected).map(e => e.id)
+    block.exercises.filter(e => essentialTypes.has(e.type)).map(e => e.id)
   );
   renderActiveBlock();
   renderSidebar();
+  showNotificationToast("🎯 Attivata Selezione Essenziale (BES): Comprensione, V/F e Lessico.");
 }
 
 function updateSelectionBadge() {
@@ -637,12 +685,28 @@ function updateSelectionBadge() {
   document.getElementById('selected-badge').textContent = `${count} di ${total} selezionati`;
 }
 
-// 5. Generazione Anteprima e Stampa PDF
-function buildPrintableHtml() {
-  const block = BLOCKS_DATA.find(b => b.id === currentBlockId);
-  if (!block) return "<p>Nessun blocco selezionato.</p>";
+// 5. Generazione Anteprima, Modalità Alta Leggibilità (DSA) e Stampa PDF
+function toggleDsaMode() {
+  isDsaMode = !isDsaMode;
+  const modalBody = document.getElementById('modal-content');
+  const btn = document.getElementById('btn-dsa-toggle');
 
-  const selectedExercises = block.exercises.filter(ex => selectedState[block.id].has(ex.id));
+  if (modalBody) {
+    modalBody.classList.toggle('dsa-mode', isDsaMode);
+  }
+  if (btn) {
+    btn.classList.toggle('active', isDsaMode);
+    btn.textContent = isDsaMode ? '🔤 Alta Leggibilità (DSA): ON' : '🔤 Alta Leggibilità (DSA): OFF';
+  }
+  showNotificationToast(
+    isDsaMode
+      ? "🔤 Modalità Alta Leggibilità (DSA) attivata: font sans-serif maggiorato, zero corsivi e righe ampliate."
+      : "🔤 Modalità tipografica standard ripristinata."
+  );
+}
+
+function buildSingleBlockPrintableHtml(block) {
+  const selectedExercises = block.exercises.filter(ex => selectedState[block.id] && selectedState[block.id].has(ex.id));
 
   let exercisesHtml = '';
   if (selectedExercises.length === 0) {
@@ -659,7 +723,7 @@ function buildPrintableHtml() {
   return `
     <div class="student-doc-header">
       <div class="doc-title">SCHEDA DIDATTICA DI LETTURA</div>
-      <div class="doc-subtitle">${globalBookTitle} — ${block.title}</div>
+      <div class="doc-subtitle">${escapeHtml(globalBookTitle)} — ${escapeHtml(block.title)}</div>
       <div class="student-fields">
         <div class="student-field-line"><strong>Nome e Cognome:</strong> ____________________________________</div>
         <div class="student-field-line"><strong>Classe:</strong> ____________</div>
@@ -667,7 +731,7 @@ function buildPrintableHtml() {
       </div>
     </div>
 
-    ${block.welcomeNote ? `<div class="doc-welcome">${block.welcomeNote.replace(/\n/g, '<br>')}</div>` : ''}
+    ${block.welcomeNote ? `<div class="doc-welcome">${escapeHtml(block.welcomeNote).replace(/\n/g, '<br>')}</div>` : ''}
 
     <div class="doc-content">
       ${exercisesHtml}
@@ -679,10 +743,37 @@ function buildPrintableHtml() {
   `;
 }
 
+function buildPrintableHtml() {
+  const block = BLOCKS_DATA.find(b => b.id === currentBlockId);
+  if (!block) return "<p>Nessun blocco selezionato.</p>";
+  return buildSingleBlockPrintableHtml(block);
+}
+
 function openPrintPreview() {
   const modalTitle = document.querySelector('#preview-modal .modal-title');
   if (modalTitle) modalTitle.textContent = "Anteprima Scheda Studente (Solo Esercizi Selezionati)";
-  document.getElementById('modal-content').innerHTML = buildPrintableHtml();
+  const modalContent = document.getElementById('modal-content');
+  modalContent.innerHTML = buildPrintableHtml();
+  modalContent.classList.toggle('dsa-mode', isDsaMode);
+  document.getElementById('preview-modal').classList.add('open');
+}
+
+function openFullBookPreview() {
+  if (!BLOCKS_DATA || BLOCKS_DATA.length === 0) {
+    showNotificationToast("Nessun blocco didattico caricato.");
+    return;
+  }
+  const modalTitle = document.querySelector('#preview-modal .modal-title');
+  if (modalTitle) modalTitle.textContent = `Fascicolo Completo Studenti (${BLOCKS_DATA.length} Unità Didattiche)`;
+
+  const fullHtml = BLOCKS_DATA.map((block, idx) => {
+    const blockHtml = buildSingleBlockPrintableHtml(block);
+    return idx === 0 ? blockHtml : `<div class="page-break-block">${blockHtml}</div>`;
+  }).join('\n');
+
+  const modalContent = document.getElementById('modal-content');
+  modalContent.innerHTML = fullHtml;
+  modalContent.classList.toggle('dsa-mode', isDsaMode);
   document.getElementById('preview-modal').classList.add('open');
 }
 
@@ -708,7 +799,7 @@ function buildTeacherGuideHtml() {
   return `
     <div class="student-doc-header">
       <div class="doc-title">GUIDA PER IL DOCENTE & SOLUZIONI</div>
-      <div class="doc-subtitle">${globalBookTitle} — ${block.title}</div>
+      <div class="doc-subtitle">${escapeHtml(globalBookTitle)} — ${escapeHtml(block.title)}</div>
     </div>
     <div class="teacher-guide-doc">
       ${markdownToHtml(block.teacherGuideMd, 'teacher-guide-section')}
@@ -722,7 +813,9 @@ function buildTeacherGuideHtml() {
 function openTeacherPreview() {
   const modalTitle = document.querySelector('#preview-modal .modal-title');
   if (modalTitle) modalTitle.textContent = "Anteprima Guida Docente & Soluzioni";
-  document.getElementById('modal-content').innerHTML = buildTeacherGuideHtml();
+  const modalContent = document.getElementById('modal-content');
+  modalContent.innerHTML = buildTeacherGuideHtml();
+  modalContent.classList.toggle('dsa-mode', isDsaMode);
   document.getElementById('preview-modal').classList.add('open');
 }
 
@@ -731,7 +824,6 @@ function printTeacherGuide() {
   setTimeout(() => { window.print(); }, 350);
 }
 
-// Assicura che prima della stampa il layout sia sbloccato e il contenuto sia pronto
 window.addEventListener('beforeprint', () => {
   document.documentElement.classList.add('is-printing');
   document.body.classList.add('is-printing');
@@ -748,7 +840,6 @@ window.addEventListener('afterprint', () => {
 
 // 6. Inizializzazione e Listener Drag & Drop
 window.addEventListener('DOMContentLoaded', async () => {
-  // Setup Drag & Drop
   window.addEventListener('dragover', (e) => {
     e.preventDefault();
     const dz = document.getElementById('dropzone-banner');
@@ -781,7 +872,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Listener e scorciatoie per l'Editor Markdown
   const editorModal = document.getElementById('editor-modal');
   if (editorModal) {
     editorModal.addEventListener('click', (e) => {
@@ -844,7 +934,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // 1. Tenta il caricamento automatico silenzioso dal server/repository (Netlify/Web)
+  // 1. Tenta il caricamento automatico silenzioso dal server/repository
   const loadedFromServer = await tryAutoLoadFromServer();
   if (loadedFromServer) return;
 
@@ -862,7 +952,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     console.warn("Storage non accessibile", err);
   }
 
-  // 3. Se non carica o è in locale senza file, mostra la schermata di caricamento come prima (nessun errore)
+  // 3. Stato vuoto iniziale
   showEmptyState();
 });
 
@@ -871,7 +961,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 // ============================================================
 
 function openMdEditor(targetBlockIdOrFilename = null) {
-  // Se la cache è vuota ma ci sono dati caricati in BLOCKS_DATA, sincronizziamo
   if (RAW_FILES_CACHE.size === 0 && BLOCKS_DATA.length > 0) {
     BLOCKS_DATA.forEach(b => {
       if (b.filename && b.rawMarkdown) {
@@ -883,7 +972,6 @@ function openMdEditor(targetBlockIdOrFilename = null) {
     });
   }
 
-  // Se è ancora vuoto, inizializza con un template per il primo blocco
   if (RAW_FILES_CACHE.size === 0) {
     const initialName = 'blocco_01_esercizi.md';
     const initialTemplate = getStarterWorksheetTemplate(1);
@@ -891,7 +979,6 @@ function openMdEditor(targetBlockIdOrFilename = null) {
     ORIGINAL_FILES_CACHE.set(initialName, initialTemplate);
   }
 
-  // Determina quale file aprire inizialmente
   let targetFile = null;
   if (typeof targetBlockIdOrFilename === 'number' || (targetBlockIdOrFilename !== null && !isNaN(targetBlockIdOrFilename))) {
     const b = BLOCKS_DATA.find(x => x.id === Number(targetBlockIdOrFilename));
@@ -914,7 +1001,6 @@ function openMdEditor(targetBlockIdOrFilename = null) {
   populateEditorFileSelect();
   loadEditorFile(targetFile, true);
 
-  // Impostazione modalità di default in base a larghezza schermo
   if (window.innerWidth < 1024) {
     setEditorViewMode('editor');
   } else {
@@ -939,7 +1025,6 @@ function populateEditorFileSelect() {
 
   const keys = Array.from(RAW_FILES_CACHE.keys()).sort((a, b) => a.localeCompare(b));
 
-  // Metadati libro (se presente)
   const datiLibro = keys.find(k => k.toLowerCase() === 'dati_libro.md');
   if (datiLibro) {
     const opt = document.createElement('option');
@@ -948,7 +1033,6 @@ function populateEditorFileSelect() {
     select.appendChild(opt);
   }
 
-  // Blocchi didattici di esercizi
   const blocks = keys.filter(k => k.toLowerCase() !== 'dati_libro.md');
   blocks.forEach(filename => {
     const opt = document.createElement('option');
@@ -957,7 +1041,6 @@ function populateEditorFileSelect() {
     select.appendChild(opt);
   });
 
-  // Opzione per creare un nuovo file
   const newOpt = document.createElement('option');
   newOpt.value = '__NEW_FILE__';
   newOpt.textContent = '➕ Nuovo File .md...';
@@ -1047,6 +1130,7 @@ function updateEditorStats() {
   statsEl.textContent = `${lines} righe · ${chars.toLocaleString('it-IT')} caratteri`;
 }
 
+// Live preview fedele alla scheda di stampa (senza doppia intestazione)
 function renderEditorLivePreview() {
   const textarea = document.getElementById('editor-textarea');
   const preview = document.getElementById('editor-preview-content');
@@ -1058,7 +1142,6 @@ function renderEditorLivePreview() {
     return;
   }
 
-  // Se è dati_libro.md, rendering dei metadati
   if (editorCurrentFile && editorCurrentFile.toLowerCase() === 'dati_libro.md') {
     preview.innerHTML = `
       <div class="student-doc-header">
@@ -1069,37 +1152,38 @@ function renderEditorLivePreview() {
     return;
   }
 
-  // Per le schede esercizi: separa contenuti studente da guida docente
-  const teacherSplitRegex = /#{1,3}\s*(?:[0-9]+\.\s*)?(?:GUIDA\s+E\s+RIASSUNTO\s+PER\s+IL\s+DOCENTE|Riassunto\s+per\s+il\s+docente|Guida\s+per\s+il\s+docente)/i;
-  const parts = content.split(teacherSplitRegex);
+  const parsed = parseWorksheetMarkdown(editorCurrentFile || 'scheda.md', content);
+  const exercisesHtml = parsed.exercises.length > 0
+    ? parsed.exercises.map(ex => ex.contentHtml).join('\n')
+    : markdownToHtml(content, 'doc-section');
 
-  if (parts.length > 1) {
-    preview.innerHTML = `
-      <div class="student-doc-header">
-        <div class="doc-title">SCHEDA DIDATTICA (ANTEPRIMA LIVE)</div>
-        <div class="doc-subtitle">${globalBookTitle}</div>
-      </div>
-      <div class="doc-content">
-        ${markdownToHtml(parts[0], 'doc-section')}
-      </div>
+  const teacherHtml = parsed.teacherGuideMd
+    ? `
       <div style="margin: 2.5rem 0 1.25rem; padding: 0.65rem 1rem; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; color: #166534; font-weight: 700; font-family: sans-serif; font-size: 0.85rem;">
         📘 SEZIONE RISERVATA: GUIDA PER IL DOCENTE & SOLUZIONI
       </div>
       <div class="teacher-guide-doc">
-        ${markdownToHtml(parts[1], 'teacher-guide-section')}
+        ${markdownToHtml(parsed.teacherGuideMd, 'teacher-guide-section')}
       </div>
-    `;
-  } else {
-    preview.innerHTML = `
-      <div class="student-doc-header">
-        <div class="doc-title">SCHEDA DIDATTICA (ANTEPRIMA LIVE)</div>
-        <div class="doc-subtitle">${globalBookTitle}</div>
+    `
+    : '';
+
+  preview.innerHTML = `
+    <div class="student-doc-header">
+      <div class="doc-title">SCHEDA DIDATTICA (ANTEPRIMA LIVE)</div>
+      <div class="doc-subtitle">${escapeHtml(globalBookTitle)} — ${escapeHtml(parsed.title)}</div>
+      <div class="student-fields">
+        <div class="student-field-line"><strong>Nome e Cognome:</strong> ____________________________________</div>
+        <div class="student-field-line"><strong>Classe:</strong> ____________</div>
+        <div class="student-field-line"><strong>Data:</strong> ____________</div>
       </div>
-      <div class="doc-content">
-        ${markdownToHtml(content, 'doc-section')}
-      </div>
-    `;
-  }
+    </div>
+    ${parsed.welcomeNote ? `<div class="doc-welcome">${escapeHtml(parsed.welcomeNote).replace(/\n/g, '<br>')}</div>` : ''}
+    <div class="doc-content">
+      ${exercisesHtml}
+    </div>
+    ${teacherHtml}
+  `;
 }
 
 function setEditorViewMode(mode) {
@@ -1152,11 +1236,11 @@ function insertEditorSnippet(type) {
       cursorOffset = replacement.length;
       break;
     case 'vf_table':
-      replacement = `\n\n| Affermazione | V | F |\n| :--- | :---: | :---: |\n| 1. ${selectedText || 'Prima affermazione da verificare'} | [ ] | [ ] |\n| 2. Seconda affermazione da verificare | [ ] | [ ] |\n`;
+      replacement = `\n\n| Affermazione | V | F |\n| :--- | :---: | :---: |\n| 1. ${selectedText || 'Prima affermazione da verificare'} | [ ] | [ ] |\n| 2. Seconda affermazione da verificare | [ ] | [ ] |\n\n**Correzione delle affermazioni false:**  \n_________________________________________________________________________________________  \n_________________________________________________________________________________________  \n`;
       cursorOffset = replacement.length;
       break;
     case 'match_table':
-      replacement = `\n\n| Termine o Concetto | Abbinamento | Significato Contestuale |\n| :--- | :---: | :--- |\n| 1. ${selectedText || 'Primo elemento'} | [ &nbsp;&nbsp; ] | A. Definizione corrispondente |\n| 2. Secondo elemento | [ &nbsp;&nbsp; ] | B. Definizione corrispondente |\n`;
+      replacement = `\n\n| Termine o Modo di Dire | Abbinamento | Significato Contestuale |\n| :--- | :---: | :--- |\n| 1. ${selectedText || 'Primo elemento'} | [ &nbsp;&nbsp; ] | A. Definizione mescolata |\n| 2. Secondo elemento | [ &nbsp;&nbsp; ] | B. Definizione mescolata |\n`;
       cursorOffset = replacement.length;
       break;
     case 'lines':
@@ -1168,7 +1252,7 @@ function insertEditorSnippet(type) {
       cursorOffset = replacement.length;
       break;
     case 'teacher_guide':
-      replacement = `\n\n---\n\n### GUIDA E RIASSUNTO PER IL DOCENTE\n\n#### Riassunto sintetico dei capitoli\nSintesi degli eventi del blocco per il docente...\n\n#### Soluzioni ed elementi chiave di correzione\n- **1. Domande aperte**: Riferimenti ai passaggi chiave del testo.\n- **2. Vero o Falso**: 1. V; 2. F.\n- **3. Laboratorio lessicale**: 1-A; 2-B.\n`;
+      replacement = `\n\n---\n\n### GUIDA E RIASSUNTO PER IL DOCENTE\n\n#### Riassunto sintetico dei capitoli\nSintesi degli eventi del blocco per il docente...\n\n#### Soluzioni ed elementi chiave di correzione\n- **1. Domande aperte**: Riferimenti ai passaggi chiave del testo.\n- **2. Vero o Falso**: 1. V; 2. F (correzione...).\n- **4. Laboratorio lessicale**: 1-B; 2-A.\n`;
       cursorOffset = replacement.length;
       break;
     default:
@@ -1194,7 +1278,6 @@ function applyEditorChanges() {
     applyBlockUpdate(editorCurrentFile, content);
   }
 
-  // Persisti nel localStorage
   try {
     localStorage.setItem('ANALISI_LIBRO_LAST_BOOK', JSON.stringify(getAllRawWorksheets()));
   } catch (err) {
@@ -1231,7 +1314,6 @@ function applyBlockUpdate(filename, markdown) {
     parsed.rawMarkdown = markdown;
     BLOCKS_DATA[existingIdx] = parsed;
 
-    // Preserva selezione esistente e aggiungi eventuali nuovi esercizi
     const currentSet = selectedState[parsed.id] || new Set();
     const newSet = new Set();
     parsed.exercises.forEach(ex => {
@@ -1249,7 +1331,6 @@ function applyBlockUpdate(filename, markdown) {
     currentBlockId = newId;
   }
 
-  // Rendi visibile l'interfaccia se era in empty state
   const dropzone = document.getElementById('dropzone-banner');
   if (dropzone) dropzone.style.display = 'none';
   const hero = document.getElementById('block-hero');
@@ -1284,6 +1365,23 @@ function downloadCurrentEditorFile() {
   const content = textarea.value;
   downloadMarkdownFile(editorCurrentFile, content);
   showNotificationToast(`⬇️ Download completato per "${editorCurrentFile}"`);
+}
+
+function downloadAllMarkdownFiles() {
+  if (isEditorDirty) {
+    applyEditorChanges();
+  }
+  const allFiles = getAllRawWorksheets();
+  if (allFiles.length === 0) {
+    showNotificationToast("Nessun file Markdown presente da scaricare.");
+    return;
+  }
+  allFiles.forEach((file, idx) => {
+    setTimeout(() => {
+      downloadMarkdownFile(file.filename, file.markdown);
+    }, idx * 250);
+  });
+  showNotificationToast(`📦 Avviato il download di ${allFiles.length} file Markdown!`);
 }
 
 function downloadMarkdownFile(filename, content) {
@@ -1375,25 +1473,32 @@ function getStarterWorksheetTemplate(blockNumber = 1) {
 
 1. **Prima domanda sul testo:**  
    Formula qui una domanda aperta di comprensione o inferenza.
-   
+
+   _________________________________________________________________________________________  
    _________________________________________________________________________________________  
    _________________________________________________________________________________________  
 
 2. **Seconda domanda sui dettagli:**  
    Formula qui una seconda domanda sui personaggi o sullo sviluppo degli eventi.
-   
+
+   _________________________________________________________________________________________  
    _________________________________________________________________________________________  
    _________________________________________________________________________________________  
 
 ---
 
 ### B. Vero o Falso? (Attenzione ai dettagli)
-*Indica se l'affermazione è Vera [V] o Falsa [F]. Se è Falsa, correggila brevemente.*
+*Indica se l'affermazione è Vera [V] o Falsa [F]. Se è Falsa, correggila brevemente sulle righe sottostanti.*
 
 | Affermazione | V | F |
 | :--- | :---: | :---: |
 | 1. Prima affermazione da verificare | [ ] | [ ] |
 | 2. Seconda affermazione da verificare | [ ] | [ ] |
+
+**Correzione delle affermazioni false:**  
+_________________________________________________________________________________________  
+_________________________________________________________________________________________  
+_________________________________________________________________________________________  
 
 ---
 
@@ -1402,7 +1507,8 @@ function getStarterWorksheetTemplate(blockNumber = 1) {
 
 1. **Analisi delle motivazioni:**  
    Quali motivi spingono i personaggi a compiere determinate scelte?
-   
+
+   _________________________________________________________________________________________  
    _________________________________________________________________________________________  
    _________________________________________________________________________________________  
 
@@ -1411,8 +1517,10 @@ function getStarterWorksheetTemplate(blockNumber = 1) {
 ## 3. Officina di Scrittura Creativa ed Empatia
 *Mettiti nei panni di uno dei personaggi.*
 
-Immagina di essere uno dei protagonisti e descrivi la situazione dal tuo punto di vista.
+Immagina di essere uno dei protagonisti e descrivi la situazione dal tuo punto di vista in una pagina di diario o lettera.
 
+_________________________________________________________________________________________  
+_________________________________________________________________________________________  
 _________________________________________________________________________________________  
 _________________________________________________________________________________________  
 _________________________________________________________________________________________  
@@ -1424,13 +1532,13 @@ ________________________________________________________________________________
 
 | Termine o Modo di Dire | Abbinamento | Significato Contestuale |
 | :--- | :---: | :--- |
-| 1. Primo termine | [ &nbsp;&nbsp; ] | A. Definizione corrispondente |
-| 2. Secondo termine | [ &nbsp;&nbsp; ] | B. Definizione corrispondente |
+| 1. Primo termine | [ &nbsp;&nbsp; ] | A. Definizione corrispondente al secondo termine |
+| 2. Secondo termine | [ &nbsp;&nbsp; ] | B. Definizione corrispondente al primo termine |
 
 ---
 
-## 5. Attività Speciale o Rilievo Grafico
-*Rappresenta graficamente una scena significativa.*
+## 5. Attività Speciale "Fuori dagli Schemi"
+*Rappresenta graficamente una scena significativa o una mappa del luogo.*
 
 [SPAZIO PER IL TUO DISEGNO / RILIEVO GRAFICO]
 
@@ -1442,9 +1550,9 @@ ________________________________________________________________________________
 Sintesi narrativa degli eventi chiave di questa unità per il docente...
 
 #### Soluzioni ed elementi chiave di correzione
-- **1. Domande aperte**: Riferimenti ai passaggi chiave del testo.
-- **2. Vero o Falso**: 1. V; 2. F.
-- **3. Laboratorio lessicale**: 1-A; 2-B.
+- **1.A Domande aperte**: Riferimenti ai passaggi chiave del testo.
+- **1.B Vero o Falso**: 1. V; 2. F (correzione modello...).
+- **4. Laboratorio lessicale**: 1-B; 2-A.
 `;
 }
 
@@ -1480,7 +1588,6 @@ async function openHelpModal() {
     console.warn("Impossibile caricare README.md tramite fetch:", err);
   }
 
-  // Fallback se fetch non è supportato (es. protocollo file://)
   contentEl.innerHTML = `
     <div style="padding: 2.5rem 1rem; text-align: center;">
       <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📖</div>
@@ -1488,7 +1595,7 @@ async function openHelpModal() {
         Manuale d'Uso & Istruzioni
       </h3>
       <p style="color: #64748b; margin-bottom: 1.5rem; max-width: 500px; margin-left: auto; margin-right: auto;">
-        Impossibile caricare direttamente il manuale dal protocollo locale. Avvia il server web locale o consulta il file README.md.
+        Impossibile caricare direttamente il manuale dal protocollo locale. Avvia un server web locale o consulta il file README.md.
       </p>
     </div>
   `;
@@ -1502,7 +1609,6 @@ function closeHelpModal() {
 function renderReadmeMarkdown(md) {
   let html = md;
 
-  // Protezione blocchi di codice (supporta ``` o ````)
   const codeBlocks = [];
   html = html.replace(/(````|```)([a-zA-Z]*)\r?\n([\s\S]*?)\1/g, (match, fence, lang, code) => {
     const placeholder = `%%%CODE_BLOCK_${codeBlocks.length}%%%`;
@@ -1522,10 +1628,8 @@ function renderReadmeMarkdown(md) {
     return placeholder;
   });
 
-  // Codice inline `...`
   html = html.replace(/`([^`]+)`/g, (m, c) => `<code style="background: #f1f5f9; color: #0f172a; padding: 0.15rem 0.35rem; border-radius: 4px; font-size: 0.86em; font-family: monospace; border: 1px solid #e2e8f0;">${escapeHtml(c)}</code>`);
 
-  // GitHub alerts > [!TIP], > [!NOTE], etc.
   html = html.replace(/^>\s+\[!(TIP|NOTE|IMPORTANT|WARNING|CAUTION)\]\s*\r?\n([\s\S]*?)(?=\r?\n\s*\r?\n|\r?\n\s*#{1,3}|$)/gm, (m, type, body) => {
     const cleanBody = body.replace(/^>\s*/gm, '').trim();
     let borderCol = '#2563eb';
@@ -1537,30 +1641,23 @@ function renderReadmeMarkdown(md) {
     return `<div style="margin: 1.2rem 0; padding: 0.85rem 1.15rem; border-left: 4px solid ${borderCol}; background: ${bgCol}; border-radius: 0 8px 8px 0; color: ${textCol}; font-size: 0.92rem; line-height: 1.55;"><strong>${icon} ${type}:</strong> ${cleanBody}</div>`;
   });
 
-  // Citazioni / Blockquote generiche > ...
   html = html.replace(/^>\s+(.+)$/gm, '<blockquote style="margin: 0.75rem 0; padding: 0.6rem 1rem; border-left: 3px solid #cbd5e1; color: #475569; font-style: italic; background: #f8fafc; border-radius: 0 6px 6px 0;">$1</blockquote>');
 
-  // Titoli
   html = html.replace(/^#\s+(.+)$/gm, '<h1 style="font-size: 1.5rem; font-weight: 800; margin: 1.6rem 0 0.8rem; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.45rem;">$1</h1>');
   html = html.replace(/^##\s+(.+)$/gm, '<h2 style="font-size: 1.25rem; font-weight: 700; margin: 1.4rem 0 0.65rem; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.35rem;">$1</h2>');
   html = html.replace(/^###\s+(.+)$/gm, '<h3 style="font-size: 1.05rem; font-weight: 700; margin: 1.15rem 0 0.45rem; color: #334155;">$1</h3>');
   html = html.replace(/^####\s+(.+)$/gm, '<h4 style="font-size: 0.95rem; font-weight: 700; margin: 0.9rem 0 0.35rem; color: #475569;">$1</h4>');
 
-  // Separatori ---
   html = html.replace(/^[ \t]*-{3,}[ \t]*$/gm, '<hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 1.5rem 0;">');
 
-  // Grassetto e corsivo
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
 
-  // Link markdown [testo](url)
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #2563eb; font-weight: 600; text-decoration: underline;">$1</a>');
 
-  // Liste
   html = html.replace(/^[ \t]*[-*]\s+(.+)$/gm, '<li style="margin-left: 1.4rem; margin-bottom: 0.35rem; color: #334155;">$1</li>');
   html = html.replace(/^[ \t]*([0-9]+)\.\s+(.+)$/gm, '<li style="margin-left: 1.4rem; margin-bottom: 0.35rem; color: #334155;">$2</li>');
 
-  // Paragrafi
   const parts = html.split(/\r?\n\s*\r?\n/);
   const cleanParts = parts.map(p => {
     p = p.trim();
@@ -1573,7 +1670,6 @@ function renderReadmeMarkdown(md) {
 
   let rendered = cleanParts.join('\n');
 
-  // Ripristina i blocchi di codice
   codeBlocks.forEach((blockHtml, idx) => {
     rendered = rendered.replace(`%%%CODE_BLOCK_${idx}%%%`, blockHtml);
   });
@@ -1582,7 +1678,7 @@ function renderReadmeMarkdown(md) {
 }
 
 function escapeHtml(str) {
-  return str
+  return String(str || '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -1594,7 +1690,7 @@ function escapeHtml(str) {
 // 9. Modulo Visualizzazione e Download: Prompt & Contesto
 // ============================================================
 
-let currentPromptContextTab = 'prompt'; // 'prompt' | 'context'
+let currentPromptContextTab = 'prompt';
 let promptRawCache = null;
 let contextRawCache = null;
 
@@ -1635,7 +1731,6 @@ async function ensurePromptAndContextLoaded() {
 function switchPromptContextTab(tab) {
   currentPromptContextTab = tab;
 
-  // Aggiorna classi bottoni di selezione tab
   document.getElementById('btn-tab-prompt')?.classList.toggle('active', tab === 'prompt');
   document.getElementById('btn-tab-context')?.classList.toggle('active', tab === 'context');
 
@@ -1645,7 +1740,7 @@ function switchPromptContextTab(tab) {
 
   if (tab === 'prompt') {
     if (subtitle) {
-      subtitle.textContent = "Prompt chiavi in mano da fornire all'Agente AI per avviare l'elaborazione autonoma del libro.";
+      subtitle.textContent = "Prompt chiavi in mano da fornire all'Agente AI per avviare l'elaborazione progressiva del libro.";
     }
     const raw = promptRawCache || getFallbackPromptText();
     content.innerHTML = renderReadmeMarkdown(raw);
@@ -1682,7 +1777,6 @@ function copyCurrentPromptContextText() {
     : (contextRawCache || getFallbackContextText());
   const filename = isPrompt ? 'prompt.md' : 'contesto_didattico.md';
 
-  // Se siamo nella scheda Prompt, estrai il prompt operativo per Gemini
   let textToCopy = fullText;
   if (isPrompt) {
     const match = fullText.match(/(?:````|```)(?:markdown)?\r?\n([\s\S]*?)(?:````|```)/);
@@ -1742,139 +1836,205 @@ function downloadBothPromptAndContext() {
 }
 
 function getFallbackPromptText() {
-  return `Sei un docente esperto e appassionato di lettere della scuola secondaria di primo grado (studenti di 11-13 anni).
-Fai riferimento alle fonti caricate in questo taccuino: il testo integrale del romanzo e il file \`contesto_didattico.md\`.
+  return `Applica rigorosamente la metodologia pedagogica definita nella fonte \`contesto_didattico.md\` al testo integrale del romanzo caricato nel taccuino.
 
-Il tuo obiettivo è analizzare l'intero libro e creare il percorso didattico completo, composto dalla scheda anagrafica dei metadati e dalle schede di lettura per ciascun blocco narrativo del romanzo, impaginate in Markdown puro e pronte per l'applicazione web di stampa.
-
-Procedi con il seguente piano operativo:
-
-### FASE 1: Metadati del Libro & Mappatura dei Blocchi
-1. Genera il blocco anagrafico \`dati_libro.md\` nel formato esatto:
-   # Dati del Libro
-   - **Titolo:** [Titolo completo del romanzo]
-   - **Autore:** [Nome e cognome dell'autore]
-   - **Anno di pubblicazione:** [Anno di prima edizione]
-   - **Editore:** [Casa editrice]
-   - **Genere:** [Genere letterario]
-   - **Ambientazione:** [Luogo ed epoca della vicenda]
-   - **Target scolastico:** Scuola secondaria di primo grado (11-13 anni)
-   - **Unità didattiche:** [Numero complessivo di blocchi proposti]
-
-2. Mappa l'intera opera in unità didattiche equilibrate (circa 1.500 - 3.500 parole o 2-4 capitoli per blocco), elencando per ciascun blocco:
-   - Numero unità (es. Blocco 1, Blocco 2...)
-   - Capitoli inclusi con titoli esatti
-   - Sintesi del nucleo tematico pedagogico
+Il tuo compito è generare il materiale didattico in formato **Markdown puro**, rispettando al millimetro i marcatori strutturali richiesti dal parser dell'applicazione web di stampa.
 
 ---
 
-### FASE 2: Generazione delle Schede Didattiche (Markdown Standard)
-Per ciascun blocco narrativo (cominciando dal Blocco 1), genera il codice Markdown completo rispettando rigorosamente la seguente struttura pedagogica e tipografica:
-
-1. **Intestazione:**
-   - Titolo: \`# SCHEDA DIDATTICA DI LETTURA E COMPRENSIONE\`
-   - Sottotitolo libro: \`## *[Titolo del Romanzo]* di [Autore]\`
-   - Sottotitolo unità: \`### Unità Didattica X (Blocco X): *Capitolo A* – *Capitolo B*\`
-   - Campi compilabili studente: \`**Nome e Cognome dello studente:** ________________________________________\`  
-     \`**Classe:** ____________________  **Data:** ____________________\`
-   - Citazione accogliente e motivante: \`> ### 🌊 Titolo Citazione...\`
-
-2. **1. Comprensione del Testo:**
-   - **A. Domande a risposta aperta:** 4 o 5 quesiti non mnemonici su cause-effetto, scelte etiche ed emozioni dei personaggi, seguiti da righe di risposta \`_________________________________________________________________________________________\`.
-   - **B. Vero o Falso? (Attenzione ai dettagli):** tabella Markdown standard a 3 colonne (\`| Affermazione | V | F |\`) con 5 affermazioni sottili e righe per motivare/correggere i falsi.
-
-3. **2. Analisi dei Personaggi e Riflessione:**
-   - **A. Analisi del Personaggio:** approfondimento psicologico sui conflitti interiori e sull'evoluzione morale.
-   - **B. Officina di Scrittura Creativa ed Empatia:** consegna di scrittura in prima persona (*"Mettiti nei panni di...", pagina di diario o lettera*).
-
-4. **3. Laboratorio Lessicale e Modi di Dire:**
-   - Tabella di corrispondenza (\`| Termine | Abbinamento | Significato Contestuale |\`) con 5 vocaboli complessi o d'autore usati nei capitoli e caselle \`[ &nbsp;&nbsp; ]\`.
-
-5. **4. Attività Speciale "Fuori dagli Schemi":**
-   - Esperienza laboratoriale originale: compito di realtà, mappa visiva, indagine o dibattito. Se prevede un disegno/schema, usa esattamente la dicitura \`[SPAZIO PER IL TUO DISEGNO / RILIEVO GRAFICO]\`.
-
-6. **5. Guida per il Docente & Soluzioni:**
-   - Inserisci un separatore \`---\` seguito dall'intestazione \`### GUIDA E RIASSUNTO PER IL DOCENTE\`.
-   - Sinossi narrativa puntuale dei capitoli del blocco.
-   - Chiavi di correzione e risposte modello complete per tutte le domande aperte, il Vero/Falso e il lessico.
+### PIANO DI ESECUZIONE PROGRESSIVA (ANTI-TRONCAMENTO)
+Per garantire la massima qualità ed evitare tagli dovuti ai limiti di lunghezza delle risposte:
+1. **In questa prima risposta**, genera **esclusivamente**:
+   - La **FASE 1** completa (il file \`dati_libro.md\` e la **Mappatura generale di tutti i blocchi** del romanzo).
+   - La scheda didattica completa del solo **Blocco 1**.
+2. Al termine del Blocco 1 **FERMATI** e attendi il mio comando *"Procedi con il Blocco successivo"* per generare i blocchi seguenti uno alla volta.
 
 ---
 
-### Vincoli Tipografici Fondamentali:
-- **NON** racchiudere le schede in blocchi di codice da programmatore (nessun blocco con triplo backtick o apice inverso).
-- **NON** usare ASCII-art, cornici o box simulati con caratteri (\`+---+\`, \`| |\`).
-- Usa le tabelle pipe standard Markdown con allineamento \`:---\` e \`:---:\`.
+### FASE 1: Metadati (\`dati_libro.md\`) e Mappatura Blocchi
 
-Inizia ora con la **Fase 1** (Metadati e Mappatura) e prosegui con la **Fase 2** blocco per blocco per l'intero libro.\n`;
+Genera per primo il blocco anagrafico con questa esatta struttura:
+
+# Dati del Libro
+- **Titolo:** [Titolo completo del romanzo]
+- **Autore:** [Nome e cognome dell'autore]
+- **Anno di pubblicazione:** [Anno di prima edizione]
+- **Editore:** [Casa editrice]
+- **Genere:** [Genere letterario]
+- **Ambientazione:** [Luogo ed epoca della vicenda]
+- **Target scolastico:** Scuola secondaria di primo grado (11-13 anni)
+- **Unità didattiche:** [Numero complessivo di blocchi previsti]
+
+Subito dopo, elenca il **Piano delle Unità Didattiche** (Blocco 1, Blocco 2, ecc.) indicando per ciascuno i capitoli inclusi e il nucleo tematico pedagogico.
+
+---
+
+### FASE 2: Template Obbligatorio per Ciascuna Scheda (\`blocco_XX_esercizi.md\`)
+
+Genera ciascuna scheda didattica seguendo **esattamente** questi titoli, segnaposto e livelli di intestazione (\`#\`, \`##\`, \`###\`):
+
+# SCHEDA DIDATTICA DI LETTURA E COMPRENSIONE
+## *[Titolo del Romanzo]* di [Autore]
+### Unità Didattica [X] (Blocco [X]): *[Capitolo Iniziale]* – *[Capitolo Finale]*
+
+---
+
+**Nome e Cognome dello studente:** ________________________________________  
+**Classe:** ____________________  **Data:** ____________________  
+
+---
+
+> ### 🌊 [Titolo evocativo per l'introduzione]
+> [Breve citazione dal testo o messaggio motivazionale di benvenuto nei capitoli del blocco]
+
+---
+
+## 1. Comprensione del Testo
+
+### A. Domande a risposta aperta
+*Rispondi in modo completo, motivando le tue risposte con riferimenti precisi al testo.*
+
+1. **[Titolo breve 1ª domanda]:** [Testo della domanda inferenziale/causa-effetto]
+
+   _________________________________________________________________________________________  
+   _________________________________________________________________________________________  
+   _________________________________________________________________________________________  
+
+*(Prosegui con le domande 2, 3, 4 e 5, inserendo sempre 3 righe di trattini bassi sotto ciascuna domanda)*
+
+### B. Vero o Falso? (Attenzione ai dettagli)
+*Indica se l'affermazione è Vera [V] o Falsa [F]. Correggi e motiva le affermazioni false sulle righe sottostanti.*
+
+| Affermazione | V | F |
+| :--- | :---: | :---: |
+| 1. [Prima affermazione] | [ ] | [ ] |
+| 2. [Seconda affermazione] | [ ] | [ ] |
+| 3. [Terza affermazione] | [ ] | [ ] |
+| 4. [Quarta affermazione] | [ ] | [ ] |
+| 5. [Quinta affermazione] | [ ] | [ ] |
+
+**Correzione delle affermazioni false:**  
+_________________________________________________________________________________________  
+_________________________________________________________________________________________  
+_________________________________________________________________________________________  
+
+## 2. Analisi dei Personaggi e Riflessione
+
+1. **[Titolo breve analisi]:** [Domanda approfondita su conflitti interiori, scelte etiche o evoluzione del personaggio]
+
+   _________________________________________________________________________________________  
+   _________________________________________________________________________________________  
+   _________________________________________________________________________________________  
+
+## 3. Officina di Scrittura Creativa ed Empatia
+
+*Mettiti nei panni di uno dei protagonisti.*
+
+[Consegna creativa in prima persona: pagina di diario, lettera o monologo interiore]
+
+_________________________________________________________________________________________  
+_________________________________________________________________________________________  
+_________________________________________________________________________________________  
+_________________________________________________________________________________________  
+_________________________________________________________________________________________  
+
+## 4. Laboratorio Lessicale e Modi di Dire
+
+*Associa ciascun vocabolo o espressione d'autore al suo significato nel contesto del racconto.*
+
+| Termine o Modo di Dire | Abbinamento | Significato Contestuale |
+| :--- | :---: | :--- |
+| 1. **[Termine 1]** | [ &nbsp;&nbsp; ] | A. [Definizione mescolata] |
+| 2. **[Termine 2]** | [ &nbsp;&nbsp; ] | B. [Definizione mescolata] |
+| 3. **[Termine 3]** | [ &nbsp;&nbsp; ] | C. [Definizione mescolata] |
+| 4. **[Termine 4]** | [ &nbsp;&nbsp; ] | D. [Definizione mescolata] |
+| 5. **[Termine 5]** | [ &nbsp;&nbsp; ] | E. [Definizione mescolata] |
+
+## 5. Attività Speciale "Fuori dagli Schemi"
+
+**[Titolo dell'attività speciale scelta a rotazione dal catalogo di \`contesto_didattico.md\`]**  
+[Spiegazione chiara della sfida laboratoriale, mappa, indagine o dibattito. Se l'attività prevede una parte grafica o uno schema, inserisci la riga seguente:]
+
+[SPAZIO PER IL TUO DISEGNO / RILIEVO GRAFICO]
+
+---
+
+### GUIDA E RIASSUNTO PER IL DOCENTE
+
+#### Riassunto sintetico dei capitoli
+[Sinossi puntuale degli eventi del blocco e coordinate tematiche]
+
+#### Soluzioni ed elementi chiave di correzione
+- **1.A Domande aperte:** [Risposte modello per ciascun quesito 1-5]
+- **1.B Vero o Falso:** [Es. 1. V; 2. F (correzione...); 3. V; 4. F (correzione...); 5. F (correzione...)]
+- **2. Analisi dei Personaggi:** [Elementi chiave della riflessione attesa]
+- **4. Laboratorio Lessicale:** [Combinazione corretta mescolata, es. 1-C, 2-E, 3-A, 4-B, 5-D]
+- **5. Attività Speciale:** [Indicazioni pratiche di conduzione in classe e criteri di valutazione]
+
+---
+
+### VINCOLI TECNICI TASSATIVI PER IL PARSER WEB:
+1. **ZERO blocchi di codice (\` \`\`\` \`):** Non racchiudere mai la scheda o parti di essa dentro blocchi con triplo apice inverso. Scrivi direttamente in Markdown normale.
+2. **ZERO ASCII-art:** Non disegnare mai scatole o cornici con caratteri testuali (\`+---+\`, \`| |\`, \`===\`).
+3. **Marcatori esatti:** Usa sempre \`_________________________________________________________________________________________\` per le righe di scrittura, \`[ &nbsp;&nbsp; ]\` nella colonna centrale del lessico, \`[SPAZIO PER IL TUO DISEGNO / RILIEVO GRAFICO]\` per i riquadri da disegno e \`### GUIDA E RIASSUNTO PER IL DOCENTE\` per separare la guida insegnante.
+
+Inizia ora con la **Fase 1** completa e la scheda del **Blocco 1**.\n`;
 }
 
 function getFallbackContextText() {
-  return `# Contesto Didattico, Ruolo e Modello di Ragionamento
+  return `# Metodologia Pedagogica e Linee Guida di Progettazione Didattica
 
-## 1. Ruolo e Obiettivo Didattico
-Agisci come un **esperto e appassionato insegnante di lettere della scuola secondaria di primo grado** (studenti di 11-13 anni).
-Il tuo obiettivo è analizzare le opere letterarie caricate come fonte in **Google NotebookLM** o **Gemini** (in formato EPUB, PDF, Google Doc o testo) e creare percorsi di lettura completi: schede didattiche, esercizi di comprensione profonda, laboratori lessicali, sfide creative ed esperienze di scrittura immedesimativa calibrate su ciascun blocco narrativo del romanzo.
-
----
-
-## 2. Modello di Ragionamento dell'Agente (Come deve pensare l'AI)
-
-Quando analizzi il testo ed elabori le attività didattiche, adotta rigorosamente questo approccio mentale:
-
-### A. Analisi Critica Preventiva
-- **Non fermarti alla superficie della trama:** Prima di scrivere le domande, individua i temi portanti del capitolo (es. il rito di passaggio, l'amicizia tra pari, la lealtà, la paura del fallimento, il confronto con gli adulti, il rapporto con la natura).
-- **Mappa le relazioni causa-effetto:** Concentrati sui momenti di svolta (*incidente scatenante, climax, colpi di scena*) e sulle scelte morali compiute dai protagonisti.
-
-### B. Calibrazione Pedagogica (Target 11-13 anni)
-- **Tono accogliente e stimolante:** Il linguaggio delle consegne deve essere diretto, incoraggiante e coinvolgente, evitando sia l'infantilismo sia il gergo accademico astratto.
-- **Evita le domande puramente mnemoniche:** Non porre quesiti nozionistici sterili. Privilegia motivazioni, emozioni e conseguenze.
-- **Rigore sul testo:** Nel "Vero o Falso", formula affermazioni sottili che verifichino l'attenzione reale ai dettagli significativi della narrazione.
-
-### C. Creatività e Rottura della Routine (Esercizio Estemporaneo)
-- Per l'attività "Fuori dagli schemi", evita la ripetitività: ogni blocco deve proporre un'esperienza didattica originale.
-
-### D. Autonomia Operativa e Gestione del Contesto
-- **Elaborazione progressiva a blocchi:** Analizza e genera una scheda per volta per mantenere altissima la precisione.
-- **Doppio livello (Studente e Docente):** Ogni scheda deve essere fruibile dagli studenti (layout pulito per la stampa) e contemporaneamente fornire al docente la guida sintetica con le chiavi di correzione complete.
+## 1. Identità e Ruolo
+Agisci come un esperto e appassionato **docente di Lettere della Scuola Secondaria di Primo Grado** (studenti di 11-13 anni). Il tuo compito è progettare percorsi di lettura profonda, inclusivi e coinvolgenti a partire dal testo integrale dell'opera letteraria fornita come fonte.
 
 ---
 
-## 3. Flusso di Lavoro Online (Gemini Notebook / NotebookLM)
-
-1. **Caricamento Fonti nel Taccuino:**
-   - Carica il testo integrale del romanzo (formato **EPUB**, **PDF**, **Google Doc** o **TXT**) come fonte primaria.
-   - Carica questo file \`contesto_didattico.md\` come seconda fonte per impostare il modello di ragionamento pedagogico.
-
-2. **Mappatura in Blocchi Logici:**
-   - Grazie alla finestra di contesto estesa di Gemini, l'AI analizza la struttura del libro e propone una suddivisione in unità didattiche coerenti (circa 1.500 - 3.500 parole per blocco, pari a 2-4 capitoli).
-
-3. **Generazione dei Metadati del Romanzo (\`dati_libro.md\`):**
-   - L'AI crea innanzitutto la scheda anagrafica del libro con titolo, autore, anno, editore, genere, ambientazione e numero totale di blocchi.
-
-4. **Generazione Progressiva delle Schede:**
-   - L'AI genera ciascuna scheda didattica (Blocco 1, Blocco 2, ecc.) fornendo il testo Markdown completo conforme agli standard tipografici del progetto.
-
-5. **Visualizzazione, Modifica e Stampa Web:**
-   - Apri l'applicazione web (su Netlify o in locale).
-   - Incolla direttamente il testo generato da Gemini nell'editor integrato del sito (tramite il pulsante \`✏️ Modifica Markdown di questa unità\` o \`➕ Nuovo File .md\`), visualizza l'anteprima di stampa in tempo reale, salvalo o scaricalo sul tuo computer.
+## 2. Metodo di Analisi Preventiva del Testo
+Prima di elaborare qualsiasi scheda didattica, analizza il testo secondo questi tre livelli:
+1. **Suddivisione in Unità Logiche (Blocchi):** Raggruppa i capitoli in blocchi narrativi coerenti (circa 1.500–3.500 parole o 2–4 capitoli per blocco), rispettando gli archi di tensione, i cambi di ambientazione o gli snodi chiave della trama.
+2. **Nuclei Tematici Fondanti:** Individua il tema formativo profondo di ciascun blocco (es. crescita personale, gestione della paura, lealtà nel gruppo dei pari, conflitto con il mondo adulto, giustizia, pregiudizio, rapporto con l'ambiente).
+3. **Catene Causa-Effetto:** Mappa gli incidenti scatenanti, i conflitti interiori e le conseguenze morali o pratiche delle decisioni prese dai personaggi.
 
 ---
 
-## 4. Struttura Obbligatoria delle Schede Didattiche
+## 3. Calibrazione Didattica e Qualità dei Quesiti (Target 11-13 anni & BES/DSA)
 
-Ogni scheda in Markdown deve contenere:
-1. **Intestazione Studente** con campi per nome, classe, data e citazione introduttiva motivante.
-2. **Comprensione del Testo** (domande aperte e Vero/Falso motivato).
-3. **Analisi e Riflessione** (analisi personaggio e officina di scrittura creativa/empatica).
-4. **Laboratorio di Lessico** (parole complesse d'autore e tabella abbinamento con \`[ &nbsp;&nbsp; ]\`).
-5. **Attività Speciale "Fuori dagli Schemi"** (mappa, dibattito, indagine, compito di realtà e spazio disegno).
-6. **Guida e Riassunto per il Docente** (sinossi narrativa e soluzioni complete).
+### A. Tono e Accessibilità Cognitiva
+- Usa consegne dirette, chiare, incoraggianti e prive di ambiguità, adatte anche ad alunni con Bisogni Educativi Speciali (BES) o Disturbi Specifici dell'Apprendimento (DSA).
+- Evita sia il linguaggio infantile sia il tecnicismo accademico astratto: guida i ragazzi a ragionare sul testo come piccoli investigatori e critici letterari.
+
+### B. Domande di Comprensione (Inferenziali vs Mnemoniche)
+- **VIETATO porre domande puramente nozionistiche o mnemoniche** su dettagli irrilevanti (es. *NO: "Di che colore è il cappello del protagonista a pagina 12?"*).
+- **OBBLIGATORIO porre domande su motivazioni, impliciti e relazioni causa-effetto** (es. *SÌ: "Per quale motivo il protagonista decide di nascondere la verità all'amico? Quali rischi comporta questa scelta?"*).
+
+### C. Criteri per il "Vero o Falso"
+- Formula affermazioni sottili che verifichino la reale comprensione degli snodi narrativi e non la semplice lettura superficiale.
+- Bilancia equamente affermazioni vere e false (es. 2 Vere e 3 False, oppure 3 Vere e 2 False) e richiedi sempre agli studenti di correggere e motivare quelle false.
+
+### D. Analisi Psicologica e Scrittura Immedesimativa
+- **Analisi dei Personaggi:** Concentrati sulle contraddizioni, sulle paure nascoste, sul cambiamento del carattere e sui dilemmi etici.
+- **Officina di Scrittura:** Proponi tracce di scrittura creativa in prima persona che allenino l'empatia e il decentramento del punto di vista (es. pagina di diario segreto, lettera mai spedita, monologo interiore prima di una scelta difficile, messaggio di scuse o difesa).
+
+### E. Selezione Lessicale
+- Scegli 5 vocaboli o locuzioni d'autore realmente presenti nei capitoli del blocco: privilegia parole ricercate, metaforiche, settoriali o desuete ma ricche di valore espressivo.
+- Formula definizioni contestuali chiare e **mescola sempre l'ordine delle definizioni (A-E)** rispetto all'ordine dei termini (1-5), così che la soluzione non sia mai sequenziale (vieta rigorosamente sequenze banali come 1-A, 2-B, 3-C, 4-D, 5-E).
 
 ---
 
-## 5. Vincoli Tipografici per la Stampa PDF
-- **NON** usare blocchi di codice (\`\`\`) per le schede studenti.
-- **NON** usare ASCII-art o box simulati (\`+---+\`).
-- Usa tabelle pipe standard e sequenze di trattini bassi per le righe di risposta.
-`;
+## 4. Repertorio delle Attività Speciali "Fuori dagli Schemi" (Rotazione Obbligatoria)
+Per la Sezione 5 di ogni scheda, progetta un'attività laboratoriale sempre diversa tra un blocco e l'altro, scegliendo a rotazione dal seguente catalogo metodologico:
+
+1. **Mappa Topografica o Tattica:** Ricostruzione grafica dei luoghi dell'azione, del percorso dei personaggi o della pianta di un edificio chiave con legenda degli eventi.
+2. **Processo in Aula / Dibattito (Debate):** Divisione in due collegi (Accusa/Difesa o Pro/Contro) su una scelta controversa compiuta da un personaggio, con raccolta delle prove dal testo.
+3. **Dossier Investigativo / Caccia all'Indizio:** Raccolta e incrocio di indizi, sospettati, moventi o incongruenze disseminati dall'autore nei capitoli.
+4. **Redazione Giornalistica d'Epoca:** Scrittura di un articolo di cronaca, un titolo di prima pagina o un'intervista impossibile ai testimoni dell'evento narrato.
+5. **Taccuino Naturalistico / Storico / Tecnico:** Approfondimento interdisciplinare (scienze, storia, geografia, tecnica) legato a un elemento reale presente nei capitoli, accompagnato da un rilievo grafico.
+6. **Codice Segreto, Stemma o Simbologia:** Ideazione di un emblema araldico, decifrazione di un messaggio in codice o rappresentazione visiva di una metafora centrale del blocco.
+
+---
+
+## 5. Criteri per la Guida Docente e le Chiavi di Correzione
+Nella sezione finale riservata all'insegnante, garantisci sempre:
+- **Inquadramento rapido:** Riassunto denso ed esaustivo degli avvenimenti del blocco, utile al docente per rinfrescare i dettagli prima della lezione in classe.
+- **Risposte Modello complete:** Fornisci la risposta articolata attesa per ciascuna domanda aperta, l'elenco esatto V/F con la correzione completa delle affermazioni false, la stringa di abbinamento del lessico (es. \`1-D, 2-A, 3-E, 4-B, 5-C\`) e i criteri di osservazione per valutare l'attività speciale.\n`;
 }

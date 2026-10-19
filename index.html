@@ -8,9 +8,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>Generatore Universale Schede Didattiche & PDF</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="[https://fonts.googleapis.com](https://fonts.googleapis.com)">
+  <link rel="preconnect" href="[https://fonts.gstatic.com](https://fonts.gstatic.com)" crossorigin>
+  <link href="[https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap](https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap)" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -37,11 +37,14 @@
       <!-- Gruppo Scheda Studenti -->
       <div style="display: flex; align-items: center; gap: 0.4rem; background: #f1f5f9; padding: 0.3rem 0.6rem; border-radius: 10px; border: 1px solid var(--border);">
         <span style="font-size: 0.76rem; font-weight: 700; color: #475569; padding-right: 0.2rem;">STUDENTI:</span>
-        <button class="btn btn-secondary" style="padding: 0.42rem 0.8rem; font-size: 0.82rem;" onclick="openPrintPreview()">
+        <button class="btn btn-secondary" style="padding: 0.42rem 0.8rem; font-size: 0.82rem;" onclick="openPrintPreview()" title="Anteprima di stampa del blocco attivo">
           👁️ Anteprima
         </button>
-        <button class="btn btn-primary" style="padding: 0.42rem 0.8rem; font-size: 0.82rem;" onclick="printStudentSheet()">
+        <button class="btn btn-primary" style="padding: 0.42rem 0.8rem; font-size: 0.82rem;" onclick="printStudentSheet()" title="Stampa o salva in PDF il blocco attivo">
           🖨️ Stampa PDF
+        </button>
+        <button class="btn btn-secondary" style="padding: 0.42rem 0.8rem; font-size: 0.82rem;" onclick="openFullBookPreview()" title="Anteprima e stampa di tutte le unità didattiche in un unico fascicolo">
+          📚 Fascicolo Completo
         </button>
       </div>
 
@@ -104,6 +107,9 @@
           <button type="button" class="btn btn-secondary" onclick="event.stopPropagation(); document.getElementById('files-input').click()">
             📄 Scegli singoli file .md
           </button>
+          <button type="button" class="btn btn-secondary" onclick="event.stopPropagation(); openMdEditor()">
+            ✏️ Crea da zero nell'Editor
+          </button>
         </div>
       </div>
 
@@ -134,6 +140,9 @@
           </span>
         </div>
         <div class="toolbar-actions">
+          <button class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.35rem 0.75rem; border-color: #93c5fd; background: #eff6ff; color: #1e40af;" onclick="selectEssentialBes()" title="Seleziona solo Comprensione, Vero/Falso e Lessico per verifiche semplificate o BES">
+            🎯 Selezione Essenziale (BES)
+          </button>
           <button class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.35rem 0.75rem;" onclick="selectAll()">
             Seleziona Tutti
           </button>
@@ -154,9 +163,14 @@
   <!-- Modal for Student Sheet Preview -->
   <div class="modal-overlay" id="preview-modal">
     <div class="modal-window">
-      <div class="modal-header">
+      <div class="modal-header" style="flex-wrap: wrap; gap: 0.5rem;">
         <div class="modal-title">Anteprima Scheda Studente (Solo Esercizi Selezionati)</div>
-        <button class="btn btn-secondary" onclick="closePrintPreview()">✕ Chiudi</button>
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <button type="button" class="btn btn-secondary btn-dsa-toggle" id="btn-dsa-toggle" onclick="toggleDsaMode()" title="Attiva o disattiva il formato ad Alta Leggibilità per alunni con DSA (font sans-serif maggiorato, zero corsivi, interlinea e righe di scrittura ampliate)">
+            🔤 Alta Leggibilità (DSA): OFF
+          </button>
+          <button class="btn btn-secondary" onclick="closePrintPreview()">✕ Chiudi</button>
+        </div>
       </div>
       <div class="modal-body" id="modal-content">
         <!-- Rendered printable content -->
@@ -209,7 +223,7 @@
         </div>
         <div class="quickbar-divider"></div>
         <div class="quickbar-group">
-          <button type="button" class="quick-btn" onclick="insertEditorSnippet('vf_table')" title="Tabella Vero / Falso">📊 Tabella V/F</button>
+          <button type="button" class="quick-btn" onclick="insertEditorSnippet('vf_table')" title="Tabella Vero / Falso con righe di correzione">📊 Tabella V/F</button>
           <button type="button" class="quick-btn" onclick="insertEditorSnippet('match_table')" title="Tabella Abbinamento / Corrispondenza">🔗 Tabella Abbinamento</button>
           <button type="button" class="quick-btn" onclick="insertEditorSnippet('lines')" title="Righe risposta per studenti">📝 Righe Risposta</button>
           <button type="button" class="quick-btn" onclick="insertEditorSnippet('drawing')" title="Spazio per disegno grafico">✏️ Spazio Disegno</button>
@@ -242,7 +256,10 @@
         </div>
 
         <div class="editor-footer-right">
-          <button type="button" class="btn btn-secondary" onclick="downloadCurrentEditorFile()" title="Scarica il file .md modificato">
+          <button type="button" class="btn btn-secondary" onclick="downloadAllMarkdownFiles()" title="Scarica tutti i file .md caricati nell'applicazione">
+            📦 Scarica Tutti (.md)
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="downloadCurrentEditorFile()" title="Scarica il file .md corrente">
             ⬇️ Scarica File .md
           </button>
           <button type="button" class="btn btn-secondary" id="btn-save-picker" onclick="saveDirectToFileSystem()" title="Salva o sovrascrivi direttamente su disco">
@@ -333,7 +350,6 @@
     </div>
   </div>
 
-  <!-- UNIVERSAL CLIENT-SIDE MARKDOWN PARSER & CONTROLLER -->
   <!-- Logica Applicativa Client-Side -->
   <script src="app.js"></script>
 </body>
