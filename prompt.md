@@ -61,4 +61,4 @@ Per ciascun blocco narrativo (cominciando dal Blocco 1), genera il codice Markdo
 - **NON** usare ASCII-art, cornici o box simulati con caratteri (`+---+`, `| |`).
 - Usa le tabelle pipe standard Markdown con allineamento `:---` e `:---:`.
 
-Avvia ora l'elaborazione della **Fase 1** (Metadati e Mappatura) e genera subito la scheda didattica completa del **Blocco 1**.
+Inizia ora con la **Fase 1** (Metadati e Mappatura) e prosegui con la **Fase 2** blocco per blocco per l'intero libro.
