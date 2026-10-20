@@ -17,7 +17,7 @@ Sono accettati anche gli zip che contengono direttamente `dati_libro.md` e i fil
 Su altri hosting l'elenco automatico non è disponibile: aggiungi in questa cartella un file `elenco.json` con i nomi dei file, ad esempio:
 
 ```json
-["Il_barone_rampante_lavoro.zip", "Le luci della via lago.zip"]
+["Il_barone_rampante_lavoro.zip", "I lucci della via lago.zip"]
 ```
 
 > [!WARNING]
