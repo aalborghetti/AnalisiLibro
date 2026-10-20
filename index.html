@@ -8,9 +8,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>Generatore Universale Schede Didattiche & PDF</title>
-  <link rel="preconnect" href="[https://fonts.googleapis.com](https://fonts.googleapis.com)">
-  <link rel="preconnect" href="[https://fonts.gstatic.com](https://fonts.gstatic.com)" crossorigin>
-  <link href="[https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap](https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap)" rel="stylesheet">
+  <!-- Font self-hosted (nessuna richiesta a server esterni, conforme GDPR) -->
+  <link rel="stylesheet" href="fonts/fonts.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -21,7 +20,7 @@
       <div class="brand-icon">📚</div>
       <div class="brand-text">
         <h1 id="app-book-title">Generatore Schede Didattiche & PDF</h1>
-        <p id="app-book-subtitle">Carica la cartella <code>schede_esercizi/</code> per visualizzare le unità</p>
+        <p id="app-book-subtitle">Segui i 4 passaggi per creare le schede del tuo libro</p>
       </div>
     </div>
     <div class="header-actions">
@@ -31,6 +30,9 @@
         <input type="file" id="files-input" multiple accept=".md" style="display: none;" onchange="handleFolderSelect(this.files)">
         <button class="btn btn-primary" style="background-color: #2563eb;" onclick="document.getElementById('folder-input').click()" title="Seleziona la cartella schede_esercizi/">
           📁 Carica Cartella Schede
+        </button>
+        <button class="btn btn-secondary" style="padding: 0.42rem 0.8rem; font-size: 0.82rem; white-space: nowrap;" onclick="openAiImportModal()" title="Incolla la risposta dell'AI: i file dati_libro.md e blocco_XX_esercizi.md vengono separati automaticamente">
+          📥 Importa AI
         </button>
       </div>
 
@@ -71,8 +73,8 @@
         <span>Prompt &amp; Contesto</span>
       </button>
 
-      <!-- Pulsante Istruzioni README (?) -->
-      <button class="btn btn-help" id="btn-help" onclick="openHelpModal()" title="Istruzioni di utilizzo (README.md)" aria-label="Istruzioni di utilizzo">
+      <!-- Pulsante Guida rapida (?) -->
+      <button class="btn btn-help" id="btn-help" onclick="openStartGuide()" title="Guida rapida: come creare le schede passo passo" aria-label="Guida rapida">
         <span class="help-question-mark">?</span>
       </button>
     </div>
@@ -97,27 +99,65 @@
     <!-- Main Content: Active Block & Exercises Selection -->
     <main class="main-content">
       
-      <!-- Empty State & Drag & Drop Dropzone -->
-      <div id="dropzone-banner" class="dropzone-banner" onclick="document.getElementById('folder-input').click()">
-        <div style="font-size: 2.4rem; margin-bottom: 0.5rem;">📂</div>
-        <h3 style="font-size: 1.2rem; font-weight: 700; color: #1e293b; margin-bottom: 0.35rem;">
-          Trascina qui la cartella <code>schede_esercizi/</code>
-        </h3>
-        <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 1.25rem;">
-          oppure fai clic su questo riquadro per selezionare la cartella dal tuo computer
-        </p>
-        <div style="display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap;">
-          <button type="button" class="btn btn-primary" onclick="event.stopPropagation(); document.getElementById('folder-input').click()">
-            📁 Scegli Cartella Schede
-          </button>
-          <button type="button" class="btn btn-secondary" onclick="event.stopPropagation(); document.getElementById('files-input').click()">
-            📄 Scegli singoli file .md
-          </button>
-          <button type="button" class="btn btn-secondary" onclick="event.stopPropagation(); openMdEditor()">
-            ✏️ Crea da zero nell'Editor
-          </button>
+      <!-- Guida rapida di avvio (stato iniziale, riapribile con il pulsante "?") e area di trascinamento file -->
+      <section id="dropzone-banner" class="dropzone-banner start-guide" aria-labelledby="start-guide-title">
+        <div class="start-guide-header">
+          <div>
+            <h3 id="start-guide-title">Crea le schede didattiche del tuo libro</h3>
+            <p>Quattro passaggi, nessun programma da installare: ti servono solo il file del libro e un account Google per usare NotebookLM.</p>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" id="start-guide-close" onclick="hideStartGuide()" style="display: none;">✕ Chiudi guida</button>
         </div>
-      </div>
+
+        <ol class="start-steps">
+          <li class="start-step">
+            <span class="start-step-num" aria-hidden="true">1</span>
+            <h4>Apri NotebookLM</h4>
+            <p class="start-step-text">Accedi con il tuo account Google e crea un nuovo taccuino: conterrà il libro e le istruzioni per l'AI.</p>
+            <a class="btn btn-secondary btn-sm" href="https://notebooklm.google.com/" target="_blank" rel="noopener noreferrer">↗ Apri NotebookLM</a>
+          </li>
+
+          <li class="start-step">
+            <span class="start-step-num" aria-hidden="true">2</span>
+            <h4>Aggiungi libro e linee guida</h4>
+            <p class="start-step-text">Aggiungi al taccuino due fonti: il file del libro (EPUB, PDF o TXT) e il file delle linee guida didattiche, che puoi scaricare qui sotto.</p>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="downloadStartContext()">⬇️ Scarica le linee guida</button>
+          </li>
+
+          <li class="start-step">
+            <span class="start-step-num" aria-hidden="true">3</span>
+            <h4>Copia le istruzioni</h4>
+            <p class="start-step-text">Copia le istruzioni, incollale nella chat del taccuino e invia. L'AI preparerà i dati del libro e la scheda del primo blocco.</p>
+            <button type="button" class="btn btn-primary btn-sm" onclick="copyStartInstructions()">📋 Copia le istruzioni</button>
+          </li>
+
+          <li class="start-step">
+            <span class="start-step-num" aria-hidden="true">4</span>
+            <h4>Incolla qui la risposta</h4>
+            <p class="start-step-text">Quando l'AI ha finito, copia la sua risposta e incollala qui. Poi chiedi all'AI il blocco successivo e ripeti, un blocco alla volta.</p>
+            <div class="start-step-actions">
+              <button type="button" class="btn btn-primary btn-sm" onclick="openAiImportModal()">📥 Incolla la risposta</button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="copyNextBlockCommand()" title="Copia la frase da inviare all'AI per ottenere il blocco successivo">📋 Copia «Procedi con il Blocco successivo»</button>
+            </div>
+          </li>
+        </ol>
+
+        <div class="start-guide-footer">
+          <div class="start-guide-option">
+            <span>Vuoi prima vedere un risultato?</span>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="loadExampleBook()">✨ Prova con un esempio (Pinocchio)</button>
+          </div>
+          <div class="start-guide-option">
+            <span>Hai già le schede salvate? Trascinale in questa pagina oppure</span>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('folder-input').click()">📁 Apri una cartella</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('files-input').click()">📄 Apri singoli file</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="openMdEditor()">✏️ Scrivi una scheda da zero</button>
+          </div>
+          <div class="start-guide-option">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="openHelpModal()">📖 Manuale completo</button>
+          </div>
+        </div>
+      </section>
 
       <!-- Block Hero Summary -->
       <section class="block-hero" id="block-hero" style="display: none;">
@@ -265,8 +305,8 @@
         </div>
 
         <div class="editor-footer-right">
-          <button type="button" class="btn btn-secondary" onclick="downloadAllMarkdownFiles()" title="Scarica tutti i file .md caricati nell'applicazione">
-            📦 Scarica Tutti (.md)
+          <button type="button" class="btn btn-secondary" onclick="downloadAllMarkdownFiles()" title="Scarica tutti i file .md in un archivio .zip (cartella schede_esercizi/ con manifest.json)">
+            📦 Scarica Tutti (.zip)
           </button>
           <button type="button" class="btn btn-secondary" onclick="downloadCurrentEditorFile()" title="Scarica il file .md corrente">
             ⬇️ Scarica File .md
@@ -355,6 +395,31 @@
         <div style="display: flex; gap: 0.5rem; align-items: center;">
           <button type="button" class="btn btn-primary" onclick="closePromptContextModal()">Chiudi</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for AI Response Import -->
+  <div class="modal-overlay" id="ai-import-modal">
+    <div class="modal-window help-window">
+      <div class="modal-header">
+        <div class="modal-title" style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.2rem;">📥</span>
+          <span>Importa la risposta dell'AI</span>
+        </div>
+        <button class="btn btn-secondary" onclick="closeAiImportModal()">✕ Chiudi</button>
+      </div>
+      <div class="modal-body help-body" style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <p style="font-size: 0.88rem; color: #475569; line-height: 1.55;">
+          Incolla qui una o più risposte dell'AI così come sono. I file vengono separati tramite i marcatori
+          <code>[[FILE: nome.md]]</code> richiesti dal prompt; in loro assenza, il testo viene diviso sui titoli
+          <code># Dati del Libro</code> e <code># SCHEDA DIDATTICA</code>. I file con lo stesso nome vengono sovrascritti.
+        </p>
+        <textarea id="ai-import-textarea" spellcheck="false" placeholder="[[FILE: dati_libro.md]]&#10;# Dati del Libro&#10;...&#10;&#10;[[FILE: blocco_01_esercizi.md]]&#10;# SCHEDA DIDATTICA DI LETTURA E COMPRENSIONE&#10;..." style="width: 100%; min-height: 320px; flex: 1; font-family: monospace; font-size: 0.85rem; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; resize: vertical;"></textarea>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+        <button type="button" class="btn btn-secondary" onclick="closeAiImportModal()">Annulla</button>
+        <button type="button" class="btn btn-primary" onclick="importAiResponse()">📥 Importa</button>
       </div>
     </div>
   </div>

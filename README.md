@@ -1,7 +1,7 @@
 # 📚 AnalisiLibro: Piattaforma Didattica Universale & Generatore Schede
 
 Una piattaforma modulare, autonoma e universale ideata per docenti della **Scuola Secondaria di Primo Grado** (studenti di 11-13 anni).  
-Il sistema consente di analizzare qualsiasi opera letteraria o romanzo per ragazzi (in formato **EPUB**, **PDF**, **Doc** o **TXT**) tramite intelligenza artificiale (**Google NotebookLM**, **Gemini Advanced**, Claude, ChatGPT), generare schede didattiche complete ad alta valenza pedagogica e impaginarle tramite un'**applicazione web interattiva** pronta per la consultazione, la modifica live, l'adattamento **BES / DSA**, l'esportazione in **DOCX per Word / Google Documenti** e la stampa tipografica in **PDF (formato A4)**.
+Il sistema consente di analizzare qualsiasi opera letteraria o romanzo per ragazzi (in formato **EPUB**, **PDF**, **Doc** o **TXT**) tramite intelligenza artificiale (**Google NotebookLM**), generare schede didattiche complete ad alta valenza pedagogica e impaginarle tramite un'**applicazione web interattiva** pronta per la consultazione, la modifica live, l'adattamento **BES / DSA**, l'esportazione in **DOCX per Word / Google Documenti** e la stampa tipografica in **PDF (formato A4)**.
 
 🌐 **Applicazione Online (GitHub Pages):** [https://aalborghetti.github.io/AnalisiLibro/](https://aalborghetti.github.io/AnalisiLibro/)
 
@@ -22,7 +22,8 @@ AnalisiLibro/
 ├── index.html                    # Applicazione web interattiva per selezione, editing, DOCX e stampa PDF
 ├── style.css                     # Foglio di stile CSS (layout responsive, modalità DSA, stampa A4)
 ├── app.js                        # Controller JS (parser Markdown, editor live, generatore OOXML DOCX)
-├── jszip.min.js                  # Libreria client-side per impacchettamento OpenXML DOCX (zero dipendenze npm)
+├── jszip.min.js                  # Libreria client-side per impacchettamento OpenXML DOCX e .zip (v3.10.1, zero dipendenze npm)
+├── fonts/                        # Font self-hosted (Plus Jakarta Sans, Source Serif 4) con licenze SIL OFL
 ├── contesto_didattico.md         # Metodologia pedagogica, calibrazione quesiti e catalogo attività per l'AI
 ├── prompt.md                     # Comando operativo progressivo e template Markdown per il parser web
 ├── README.md                     # Manuale operativo e documentazione del progetto
@@ -33,7 +34,7 @@ AnalisiLibro/
 ```
 
 > [!NOTE]
-> Se pubblichi il sito su GitHub Pages o Netlify con una cartella `schede_esercizi/`, puoi includere un file `schede_esercizi/manifest.json` contenente l'array dei file (es. `["dati_libro.md", "blocco_01_esercizi.md", "blocco_02_esercizi.md"]`) per il caricamento istantaneo all'avvio. In assenza di `manifest.json`, l'app rileva automaticamente i file sequenziali `dati_libro.md`, `blocco_01_esercizi.md`, `blocco_02_esercizi.md`, interrompendo la ricerca al primo blocco non presente.
+> Se pubblichi il sito su GitHub Pages o Netlify con una cartella `schede_esercizi/`, puoi includere un file `schede_esercizi/manifest.json` contenente l'array dei file (es. `["dati_libro.md", "blocco_01_esercizi.md", "blocco_02_esercizi.md"]`, oppure `{"files": [...]}`) per il caricamento istantaneo all'avvio. Il pulsante **`📦 Scarica Tutti (.zip)`** dell'editor genera la cartella `schede_esercizi/` completa di `manifest.json`, pronta da pubblicare. In assenza di `manifest.json`, l'app rileva automaticamente i file sequenziali `dati_libro.md`, `blocco_01_esercizi.md`, `blocco_02_esercizi.md` (fino a 30 blocchi), interrompendo la ricerca al primo blocco non presente.
 
 ---
 
@@ -43,19 +44,22 @@ L'intero workflow è progettato per essere eseguito **senza installare alcun sof
 
 ```mermaid
 flowchart TD
-    A["1. Carica il libro (EPUB/PDF/TXT) + contesto_didattico.md come fonti su NotebookLM / Gemini"] --> B["2. Incolla nella chat il prompt operativo da prompt.md"]
+    A["1. Carica il libro (EPUB/PDF/TXT) + contesto_didattico.md come fonti di un taccuino NotebookLM"] --> B["2. Incolla nella chat del taccuino il prompt operativo da prompt.md"]
     B --> C["3. L'AI genera Fase 1 (dati_libro.md + Mappatura) e il Blocco 1, poi procede blocco per blocco"]
-    C --> D["4. Apri l'app web (index.html) e incolla le schede nell'editor integrato o carica la cartella"]
+    C --> D["4. Apri l'app web (index.html) e incolla la risposta con 📥 Importa AI (oppure carica la cartella dei file .md)"]
     D --> E["5. Personalizza gli esercizi (anche per BES/DSA) e stampa il PDF A4 (Studenti, Fascicolo o Docente)"]
 ```
 
 ---
 
-## 🤖 1. Generazione delle Schede con l'AI (NotebookLM / Gemini)
+## 🤖 1. Generazione delle Schede con l'AI (NotebookLM)
+
+> [!TIP]
+> All'apertura l'app mostra una **guida rapida in 4 passi** (riapribile in ogni momento con il pulsante **`?`**) con i link e i pulsanti per ciascun passaggio, e permette di caricare un **esempio completo** (*Le avventure di Pinocchio*, capitoli I-VII) per vedere il risultato prima di iniziare.
 
 Il sistema separa nettamente la **metodologia pedagogica** (`contesto_didattico.md`, caricata come fonte di conoscenza) dal **comando esecutivo e sintattico** (`prompt.md`, inviato nella chat):
 
-1. **Crea un taccuino** su [Google NotebookLM](https://notebooklm.google.com/) oppure apri una sessione su **Gemini Advanced**.
+1. **Crea un taccuino** su [Google NotebookLM](https://notebooklm.google.com/) (serve un account Google).
 2. **Carica le Fonti:**
    - Il file del romanzo da analizzare in formato **EPUB**, **PDF**, **Doc** o **TXT**.
    - Il file [`contesto_didattico.md`](contesto_didattico.md) (trascinalo come file o incollalo come fonte).
@@ -63,25 +67,30 @@ Il sistema separa nettamente la **metodologia pedagogica** (`contesto_didattico.
    - Apri [`prompt.md`](prompt.md) (oppure clicca sul pulsante **`🤖 Prompt & Contesto`** direttamente nell'applicazione web e premi **`📋 Copia Prompt per AI`**).
    - Incolla il prompt nella chat dell'AI.
 4. **Generazione Progressiva (Anti-Troncamento):**
-   - **Primo passo:** L'AI genera la scheda anagrafica del libro (`dati_libro.md`), la mappatura completa delle unità didattiche e la scheda integrale del **Blocco 1**, fermandosi al termine.
+   - **Primo passo:** L'AI genera la scheda anagrafica del libro (`dati_libro.md`) con il Piano delle Unità Didattiche (capitoli, nucleo tematico e attività speciale assegnata a ogni blocco) e la scheda integrale del **Blocco 1**, fermandosi al termine.
    - **Passi successivi:** Invia il comando *"Procedi con il Blocco successivo"* per far generare all'AI ciascun blocco seguente uno alla volta con il massimo livello di approfondimento, evitando tagli dovuti ai limiti di lunghezza dell'output.
+5. **Importazione nell'app:**
+   - Ogni file prodotto dall'AI è delimitato dalle righe `[[FILE: nome.md]]` e `[[FINE]]`.
+   - Copia la risposta dalla chat del taccuino, poi nell'app premi **`📥 Importa AI`** e incollala: i file `dati_libro.md` e `blocco_XX_esercizi.md` vengono separati, nominati e caricati automaticamente. Ripeti per ogni nuovo blocco.
+   - Se i marcatori mancano, l'importazione divide il testo sui titoli `# Dati del Libro` e `# SCHEDA DIDATTICA`.
 
 ### 📐 Struttura Pedagogica di Ciascuna Scheda
 Ciascuna unità didattica generata rispetta una precisa architettura pedagogica e tipografica:
 - **Intestazione studente:** Nome, Cognome, Classe, Data e citazione motivazionale dal testo.
 - **`## 1. Comprensione del Testo`:**
-  - `### A. Domande a risposta aperta`: 4-5 domande non mnemoniche su cause-effetto, scelte etiche ed emozioni dei personaggi, ciascuna con righe di risposta `____`.
+  - `### A. Domande a risposta aperta`: 5 domande non mnemoniche su cause-effetto, scelte etiche ed emozioni dei personaggi, ciascuna con righe di risposta `____`.
   - `### B. Vero o Falso?`: 5 affermazioni sottili in tabella con righe sottostanti dedicate alla correzione e motivazione dei falsi.
+  - Nell'app le parti A e B sono due esercizi selezionabili separatamente.
 - **`## 2. Analisi dei Personaggi e Riflessione`:**
-  - Approfondimento psicologico sui conflitti interiori, sui dilemmi etici e sull'evoluzione morale dei protagonisti.
+  - 2 domande di approfondimento psicologico sui conflitti interiori, sui dilemmi etici e sull'evoluzione morale dei protagonisti.
 - **`## 3. Officina di Scrittura Creativa ed Empatia`:**
   - Attività di scrittura in prima persona (*pagina di diario, monologo interiore, lettera*) con spazio di scrittura esteso.
 - **`## 4. Laboratorio Lessicale e Modi di Dire`:**
   - Tabella con 5 vocaboli complessi o espressioni d'autore con caselle di abbinamento `[  ]` e definizioni contestuali sempre mescolate.
 - **`## 5. Attività Speciale "Fuori dagli Schemi"`:**
-  - Attività laboratoriale scelta a rotazione dal catalogo metodologico (mappa topografica, processo simulato/debate, dossier investigativo, redazione giornalistica, taccuino naturalistico/storico, simbologia) con eventuale box grafico `[SPAZIO PER IL TUO DISEGNO / RILIEVO GRAFICO]`.
+  - Attività laboratoriale assegnata a rotazione nel Piano delle Unità Didattiche (mappa topografica, processo simulato/debate, dossier investigativo, redazione giornalistica, taccuino naturalistico/storico, simbologia): tutte le sei tipologie prima di ripeterne una, mai la stessa in due blocchi consecutivi. Eventuale box grafico `[SPAZIO PER IL TUO DISEGNO / RILIEVO GRAFICO]`.
 - **`### GUIDA E RIASSUNTO PER IL DOCENTE`:**
-  - Sinossi narrativa puntuale del blocco e chiavi di correzione complete per tutti i quesiti.
+  - Sinossi narrativa puntuale del blocco, chiavi di correzione complete per tutti i quesiti e criteri di valutazione per scrittura e attività speciale.
 
 ---
 
@@ -91,24 +100,27 @@ L'applicazione web [`index.html`](index.html) è **100% client-side** (funziona 
 
 ### Caratteristiche Principali:
 1. **Caricamento Flessibile:**
-   - **Da Cartella:** Clicca su **`📁 Carica Cartella Schede`** per selezionare una cartella locale contenente i file `.md`.
-   - **Automatico all'avvio:** Se distribuita online con una cartella `schede_esercizi/`, l'app la rileva e carica automaticamente all'avvio.
+   - **Importazione della risposta AI:** **`📥 Importa AI`** separa automaticamente i file delimitati da `[[FILE: nome.md]]` / `[[FINE]]` e li aggiunge a quelli già caricati (i file con lo stesso nome vengono sovrascritti dopo conferma).
+   - **Da Cartella o singoli file:** **`📁 Carica Cartella Schede`**, **`📄 Scegli singoli file .md`** oppure trascinamento della cartella nella pagina. Se la selezione contiene file `blocco_XX…`, vengono caricati solo questi e `dati_libro.md`; in ogni caso sono ignorati `README.md`, `prompt.md`, `contesto_didattico.md` e i nomi duplicati.
+   - **Automatico all'avvio:** Se distribuita online con una cartella `schede_esercizi/`, l'app la rileva e carica automaticamente all'avvio. Se nel browser ci sono modifiche locali (editor o importazione AI) non pubblicate, l'app chiede se ripristinarle invece di sovrascriverle; in quel caso *Ripristina Iniziale* riporta alla versione del sito.
    - **Creazione da zero:** Puoi avviare l'editor integrato anche senza file preesistenti cliccando su **`✏️ Crea da zero nell'Editor`**.
+   - Il titolo del libro viene letto da `dati_libro.md` o, in sua assenza, dal sottotitolo `## *Titolo* di Autore` delle schede.
 
 2. **Didattica Inclusiva (BES e Alta Leggibilità DSA):**
-   - **`🎯 Selezione Essenziale (BES)`:** Pulsante rapido nella barra di selezione che attiva automaticamente le sole sezioni di *Comprensione*, *Vero/Falso* e *Laboratorio Lessicale* per verifiche o schede a carico cognitivo ridotto.
-   - **`🔤 Alta Leggibilità (DSA)`:** Commutatore disponibile nell'anteprima di stampa che trasforma l'impaginazione secondo i criteri di alta leggibilità (font sans-serif `Plus Jakarta Sans` maggiorato a `12.5pt`, rimozione totale del corsivo, interlinea e spaziatura espanse, righe di scrittura più alte per alunni con disgrafia).
+   - **`🎯 Selezione Essenziale (BES)`:** Pulsante rapido nella barra di selezione che attiva automaticamente le sole sezioni di *Comprensione (domande aperte)*, *Vero/Falso* e *Laboratorio Lessicale* per verifiche o schede a carico cognitivo ridotto. Ogni esercizio resta poi selezionabile o deselezionabile singolarmente.
+   - **`🔤 Alta Leggibilità (DSA)`:** Commutatore disponibile nell'anteprima di stampa che trasforma l'impaginazione secondo i criteri di alta leggibilità (font sans-serif `Plus Jakarta Sans` maggiorato a `12.5pt`, rimozione totale del corsivo, interlinea e spaziatura espanse, righe di scrittura più alte per alunni con disgrafia). Il pulsante **`📄 Esporta DOCX`** dell'anteprima applica la stessa impostazione al file Word (Verdana 12,5 pt, senza corsivi, interlinea 1,5); i pulsanti DOCX dell'header producono sempre la versione standard.
 
 3. **Editor Markdown Integrato & Live Preview (`✏️ Modifica Markdown di questa unità`):**
    - Modifica istantaneamente qualsiasi scheda o creane di nuove direttamente dall'interfaccia.
    - Live preview affiancata con rendering tipografico A4 in tempo reale e conteggio fedele delle righe di risposta.
    - Barra di formattazione rapida per inserire tabelle Vero/Falso (complete di righe di correzione), abbinamenti lessicali `[  ]`, righe di scrittura e box di disegno.
-   - Salvataggio in memoria (`localStorage`), salvataggio diretto su disco (*File System Access API*), download singolo (`⬇️ Scarica File .md`) o esportazione multipla (`📦 Scarica Tutti (.md)`).
+   - Salvataggio in memoria (`localStorage`), salvataggio diretto su disco (*File System Access API*), download singolo (`⬇️ Scarica File .md`) o esportazione di tutti i file in un archivio (`📦 Scarica Tutti (.zip)`, con `manifest.json`).
+   - Le selezioni degli esercizi vengono conservate quando si applicano modifiche; gli esercizi nuovi risultano selezionati.
 
 4. **Modalità Studenti & Fascicolo Completo (Stampa PDF A4 & DOCX):**
    - **`👁️ Anteprima` / `🖨️ Stampa PDF`:** Visualizza e stampa la scheda del blocco corrente in formato A4 **escludendo rigorosamente le soluzioni e la guida docente**.
-   - **`📚 Fascicolo Completo`:** Impagina tutte le unità didattiche del romanzo in un unico documento multipagina pronto per la stampa o l'esportazione.
-   - **`📄 DOCX` / `📄 DOCX Fascicolo`:** Genera istantaneamente il file `.docx` per il singolo blocco o per l'intera opera.
+   - **`📚 Fascicolo Completo`:** Impagina in un unico documento multipagina tutte le unità didattiche con almeno un esercizio selezionato, ciascuna su una nuova pagina.
+   - **`📄 DOCX`:** Genera istantaneamente il file `.docx` del blocco corrente; per l'intera opera usa **`📄 Esporta DOCX`** nell'anteprima del Fascicolo Completo.
 
 5. **Modalità Docente:**
    - Nel riquadro verde **`DOCENTE:`**, i pulsanti **`👁️ Anteprima`**, **`📘 Stampa Guida`** e **`📄 DOCX`** generano il fascicolo riservato all'insegnante completo di sinossi narrativa, griglie e chiavi di correzione.
@@ -116,7 +128,7 @@ L'applicazione web [`index.html`](index.html) è **100% client-side** (funziona 
 6. **Esportazione DOCX Nativa (Microsoft Word & Google Documenti):**
    - **100% Client-Side:** I file `.docx` (standard Microsoft Word OpenXML) vengono generati direttamente nel browser tramite [`jszip.min.js`](jszip.min.js) senza transitare su server esterni e a costo zero.
    - **Editing su Google Drive:** Basta scaricare il file `.docx`, trascinarlo sul proprio **Google Drive** e aprirlo con **Google Documenti** per editarlo, personalizzarlo, assegnarlo su **Google Classroom** o condividerlo con colleghi.
-   - **Formattazione Preservata:** Tabelle Vero/Falso, caselle di abbinamento lessicale `[ ]`, righe tratteggiate di scrittura manuale e riquadri grafici vengono convertiti in elementi nativi e liberamente modificabili.
+   - **Formattazione Preservata:** Tabelle Vero/Falso e di abbinamento diventano tabelle Word con colonne proporzionate, le righe di scrittura diventano paragrafi con bordo tratteggiato e gli spazi per il disegno diventano riquadri: tutto resta liberamente modificabile. Le caselle `[ ]` restano caratteri di testo. Nel fascicolo ogni unità inizia su una nuova pagina.
 
 7. **Visualizzatore Prompt & Contesto Integrato:**
    - Il pulsante **`🤖 Prompt & Contesto`** nell'header consente di consultare, copiare negli appunti o scaricare in qualsiasi momento sia `prompt.md` sia `contesto_didattico.md`.
@@ -130,7 +142,9 @@ In linea con gli standard di sicurezza e qualità adottati in tutti i progetti:
 - **Politica di Sicurezza ([SECURITY.md](SECURITY.md)):** Linee guida chiare per la segnalazione responsabile di eventuali anomalie tramite GitHub Security Advisories.
 - **Protezione da Leak ([.gitignore](.gitignore)):** Esclusione automatica di credenziali, file d'ambiente (`.env`, `*.env`), configurazioni di editor (`.vscode/`, `.idea/`) e file editoriali protetti da copyright (`*.epub`, `*.pdf`).
 - **Code Ownership ([.github/CODEOWNERS](.github/CODEOWNERS)):** Assegnazione della revisione e titolarità del codice a `@aalborghetti`.
-- **Monitoraggio Automatico ([.github/dependabot.yml](.github/dependabot.yml)):** Controllo periodico automatizzato di sicurezza per GitHub Actions e dipendenze.
+- **Monitoraggio Automatico ([.github/dependabot.yml](.github/dependabot.yml)):** Controllo periodico automatizzato delle versioni delle GitHub Actions. La libreria `jszip.min.js` (v3.10.1) è inclusa direttamente nel repository e non è coperta da Dependabot: va aggiornata manualmente.
+- **Nessuna risorsa esterna:** I font sono ospitati nella cartella `fonts/` (licenza SIL OFL), quindi aprendo l'app non viene contattato alcun server di terze parti (nessun trasferimento dell'indirizzo IP a Google Fonts, rilevante per il GDPR in ambito scolastico).
+- **Sanitizzazione dei contenuti:** L'HTML generato dai file Markdown (anche se prodotti da un'AI o ricevuti da terzi) viene ripulito da script, gestori di eventi e link `javascript:` prima di essere mostrato.
 
 ---
 

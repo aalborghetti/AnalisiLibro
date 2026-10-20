@@ -4,11 +4,13 @@
  */
 
 // Stato dell'applicazione
+const DEFAULT_BOOK_TITLE = "Schede Didattiche di Lettura";
+const BOOK_STORAGE_KEY = 'ANALISI_LIBRO_LAST_BOOK';
+const LOCAL_EDITS_STORAGE_KEY = 'ANALISI_LIBRO_LOCAL_EDITS';
 let BLOCKS_DATA = [];
 let currentBlockId = null;
-const selectedState = {};
-let globalBookTitle = "Schede Didattiche di Lettura";
-let globalBookAuthor = "";
+const selectedState = {}; // nome file -> Set degli ID degli esercizi selezionati
+let globalBookTitle = DEFAULT_BOOK_TITLE;
 let isDsaMode = false;
 
 // Cache dei file Markdown raw (in memoria)
@@ -24,30 +26,123 @@ function makeSafeId(str) {
   return String(str).replace(/[^a-zA-Z0-9_-]/g, '_');
 }
 
+function isDatiLibro(filename) {
+  return String(filename || '').toLowerCase() === 'dati_libro.md';
+}
+
+// Ordinamento naturale: blocco_2 prima di blocco_10
+function compareFilenames(a, b) {
+  return a.localeCompare(b, 'it', { numeric: true, sensitivity: 'base' });
+}
+
+// Tipologia, etichetta e descrizione di un esercizio a partire dal titolo della sezione
+function classifySection(title) {
+  const titleLower = title.toLowerCase();
+  if (titleLower.includes("vero o falso") || titleLower.includes("v/f")) {
+    return { type: "vf", typeLabel: "Vero o Falso", desc: "Verifica dell'attenzione ai dettagli narrativi e correzione delle affermazioni false." };
+  }
+  if (titleLower.includes("comprensione")) {
+    return { type: "comprensione", typeLabel: "Comprensione del Testo", desc: "Domande a risposta aperta su motivazioni, impliciti e relazioni causa-effetto." };
+  }
+  if (titleLower.includes("analisi") || titleLower.includes("personagg")) {
+    return { type: "analisi", typeLabel: "Analisi Personaggi", desc: "Riflessione psicologica sui conflitti interiori e sulle scelte etiche dei protagonisti." };
+  }
+  if (titleLower.includes("scrittura") || titleLower.includes("officina") || titleLower.includes("immedesimazione") || titleLower.includes("empatia")) {
+    return { type: "scrittura", typeLabel: "Officina di Scrittura", desc: "Traccia di immedesimazione personale in prima persona, pagina di diario o lettera." };
+  }
+  if (titleLower.includes("lessic") || titleLower.includes("linguaggio") || titleLower.includes("parole")) {
+    return { type: "lessico", typeLabel: "Laboratorio Lessicale", desc: "Abbinamento di vocaboli complessi e modi di dire d'autore al significato contestuale." };
+  }
+  if (titleLower.includes("speciale") || titleLower.includes("schemi") || titleLower.includes("estemporane") || titleLower.includes("compito di realtà") || titleLower.includes("rilievo")) {
+    return { type: "speciale", typeLabel: "Attività Speciale", desc: "Esperienza laboratoriale creativa, mappa visiva, indagine o rilievo grafico." };
+  }
+  return { type: "comprensione", typeLabel: "Comprensione del Testo", desc: "Domande a risposta aperta su motivazioni, impliciti e relazioni causa-effetto." };
+}
+
+// Un esercizio può appartenere a un gruppo (es. "## 1. Comprensione del Testo" diviso in A/B):
+// il titolo del gruppo viene stampato una sola volta anche se si selezionano entrambe le parti
+function makeExercise(id, cls, title, bodyMd, groupHeadingMd = '') {
+  const fullMd = groupHeadingMd ? `${groupHeadingMd}\n\n${bodyMd}` : bodyMd;
+  return {
+    id: id,
+    type: cls.type,
+    typeLabel: cls.typeLabel,
+    title: title,
+    desc: cls.desc,
+    group: groupHeadingMd || null,
+    rawMarkdown: fullMd,
+    rawMarkdownBody: bodyMd,
+    contentHtml: markdownToHtml(fullMd),
+    contentHtmlBody: markdownToHtml(bodyMd)
+  };
+}
+
+// Divide una sezione nelle sue sottosezioni "### A. ...", "### B. ..." (almeno due), altrimenti null
+function splitLetteredSubsections(sectionChunk, baseId) {
+  const subRegex = /^###\s+([A-Z]\.\s+[^\n]+)$/gm;
+  const subs = [];
+  let match;
+  while ((match = subRegex.exec(sectionChunk)) !== null) {
+    subs.push({ title: match[1].trim(), start: match.index });
+  }
+  if (subs.length < 2) return null;
+
+  const groupHeadingMd = sectionChunk.substring(0, subs[0].start).trim();
+  return subs.map((sub, j) => {
+    const end = (j + 1 < subs.length) ? subs[j + 1].start : sectionChunk.length;
+    const bodyMd = sectionChunk.substring(sub.start, end).trim();
+    return makeExercise(
+      `${baseId}_${String.fromCharCode(97 + j)}`,
+      classifySection(sub.title),
+      sub.title.replace(/^[A-Z]\.\s*/, ''),
+      bodyMd,
+      groupHeadingMd
+    );
+  });
+}
+
+// Unisce gli esercizi selezionati (HTML o Markdown) mostrando una sola volta il titolo di gruppo
+function joinSelectedExercises(exercises, format) {
+  let lastGroup = null;
+  return exercises.map((ex, idx) => {
+    const sameGroup = ex.group && ex.group === lastGroup;
+    lastGroup = ex.group;
+    if (format === 'html') {
+      return sameGroup ? ex.contentHtmlBody : ex.contentHtml;
+    }
+    const separator = idx === 0 ? '' : (sameGroup ? '\n\n' : '\n\n---\n\n');
+    return separator + (sameGroup ? ex.rawMarkdownBody : ex.rawMarkdown);
+  }).join(format === 'html' ? '\n' : '');
+}
+
 // 1. Markdown Parser per Schede Didattiche
 function parseWorksheetMarkdown(filename, rawMd) {
-  let bookTitle = globalBookTitle;
+  rawMd = String(rawMd || '').replace(/\r\n?/g, '\n');
   let blockTitle = "";
   let welcomeNote = "";
   const safeFileId = makeSafeId(filename);
-  
-  // Separa i contenuti dello studente dalla guida docente
+
+  // Separa i contenuti dello studente dalla guida docente (al primo titolo della guida)
   let studentMd = rawMd;
   let teacherGuideMd = "";
-  const teacherSplitRegex = /#{1,3}\s*(?:[0-9]+\.\s*)?(?:GUIDA\s+E\s+RIASSUNTO\s+PER\s+IL\s+DOCENTE|Riassunto\s+per\s+il\s+docente|Guida\s+per\s+il\s+docente)/i;
-  const teacherParts = rawMd.split(teacherSplitRegex);
-  if (teacherParts.length > 1) {
-    studentMd = teacherParts[0];
-    teacherGuideMd = teacherParts[1];
+  const teacherSplitRegex = /^#{1,3}\s*(?:[0-9]+\.\s*)?(?:GUIDA\s+E\s+RIASSUNTO\s+PER\s+IL\s+DOCENTE|Riassunto\s+per\s+il\s+docente|Guida\s+per\s+il\s+docente)/im;
+  const teacherMatch = teacherSplitRegex.exec(rawMd);
+  if (teacherMatch) {
+    studentMd = rawMd.slice(0, teacherMatch.index);
+    teacherGuideMd = rawMd.slice(teacherMatch.index + teacherMatch[0].length);
   }
 
-  // Ricava il titolo del blocco da "### Titolo..." o dal primo H1
-  const blockMatch = rawMd.match(/^###\s+(?:Unità\s+Didattica\s+[0-9]+|Blocco\s+[0-9]+|[^\n]+:\s*)(.+)$/m) || rawMd.match(/^#\s+(.+)$/m);
+  // Ricava il titolo del blocco da "### Unità Didattica X (Blocco X): ..." o dal primo H1
+  const blockMatch = rawMd.match(/^###\s+(?:Unità\s+Didattica\s+[0-9]+\s*(?:\(\s*Blocco\s+[0-9]+\s*\))?\s*:?\s*|Blocco\s+[0-9]+\s*:?\s*|[^\n]+:\s*)(.+)$/m) || rawMd.match(/^#\s+(.+)$/m);
   if (blockMatch) {
     blockTitle = blockMatch[1].replace(/\*/g, '').trim();
   } else {
     blockTitle = filename.replace(/\.md$/, '');
   }
+
+  // Numero reale del blocco (dal titolo o dal nome del file)
+  const numMatch = rawMd.match(/^###\s+(?:Unità\s+Didattica|[^\n]*Blocco)\s+([0-9]+)/mi) || String(filename).match(/([0-9]+)/);
+  const blockNumber = numMatch ? parseInt(numMatch[1], 10) : null;
 
   // Citazione introduttiva ("> ...")
   const quoteMatch = rawMd.match(/^>\s+([\s\S]*?)(?=\n\s*\n\s*---|\n\s*#{2,3})/m);
@@ -60,7 +155,7 @@ function parseWorksheetMarkdown(filename, rawMd) {
   const sectionRegex = /^#{2,3}\s+([0-9]+\.\s+[^#\n]+)/gm;
   let match;
   const sectionIndices = [];
-  
+
   while ((match = sectionRegex.exec(studentMd)) !== null) {
     sectionIndices.push({
       title: match[1].trim(),
@@ -72,91 +167,50 @@ function parseWorksheetMarkdown(filename, rawMd) {
     const current = sectionIndices[i];
     const nextStart = (i + 1 < sectionIndices.length) ? sectionIndices[i + 1].start : studentMd.length;
     const sectionChunk = studentMd.substring(current.start, nextStart).trim();
-    
-    const titleLower = current.title.toLowerCase();
-    let type = "comprensione";
-    let typeLabel = "Comprensione del Testo";
-    let desc = "Quesiti di comprensione profonda, relazioni causa-effetto e vero/falso.";
-    let defaultSelected = true;
+    const cls = classifySection(current.title);
 
-    if (titleLower.includes("vero o falso") || titleLower.includes("v/f")) {
-      type = "vf";
-      typeLabel = "Vero o Falso";
-      desc = "Verifica dell'attenzione ai dettagli narrativi e correzione delle affermazioni false.";
-    } else if (titleLower.includes("comprensione")) {
-      type = "comprensione";
-      typeLabel = "Comprensione del Testo";
-      desc = "Domande a risposta aperta sugli snodi narrativi e verifica Vero/Falso.";
-    } else if (titleLower.includes("analisi") || titleLower.includes("personagg")) {
-      type = "analisi";
-      typeLabel = "Analisi Personaggi";
-      desc = "Riflessione psicologica sui conflitti interiori e sulle scelte etiche dei protagonisti.";
-    } else if (titleLower.includes("scrittura") || titleLower.includes("officina") || titleLower.includes("immedesimazione") || titleLower.includes("empatia")) {
-      type = "scrittura";
-      typeLabel = "Officina di Scrittura";
-      desc = "Traccia di immedesimazione personale in prima persona, pagina di diario o lettera.";
-    } else if (titleLower.includes("lessico") || titleLower.includes("linguaggio") || titleLower.includes("parole")) {
-      type = "lessico";
-      typeLabel = "Laboratorio Lessicale";
-      desc = "Abbinamento di vocaboli complessi e modi di dire d'autore al significato contestuale.";
-    } else if (titleLower.includes("speciale") || titleLower.includes("schemi") || titleLower.includes("estemporane") || titleLower.includes("compito di realtà") || titleLower.includes("rilievo")) {
-      type = "speciale";
-      typeLabel = "Attività Speciale";
-      desc = "Esperienza laboratoriale creativa, mappa visiva, indagine o rilievo grafico.";
-    }
-
-    // Retrocompatibilità: Sezione combinata Analisi del Personaggio + Scrittura Creativa nello stesso H2
-    const analSplitRegex = /(?:###\s+B\.\s+|####\s+(?:Spazio\s+)?Scrittura)/i;
-    if (type === "analisi" && analSplitRegex.test(sectionChunk)) {
-      const parts = sectionChunk.split(analSplitRegex);
-      if (parts.length > 1) {
-        exercises.push({
-          id: `${safeFileId}_sec_${i}_a`,
-          type: "analisi",
-          typeLabel: "Analisi Personaggi",
-          title: "Analisi del Personaggio e Riflessione",
-          desc: "Riflessione sui conflitti interiori e sulle scelte etiche.",
-          defaultSelected: true,
-          contentHtml: markdownToHtml(parts[0]),
-          rawMarkdown: parts[0]
-        });
-        exercises.push({
-          id: `${safeFileId}_sec_${i}_b`,
-          type: "scrittura",
-          typeLabel: "Officina di Scrittura",
-          title: "Spunto di Scrittura Creativa ed Empatia",
-          desc: "Traccia di immedesimazione personale o monologo interiore.",
-          defaultSelected: true,
-          contentHtml: markdownToHtml("### Scrittura Creativa ed Empatia\n" + parts[1]),
-          rawMarkdown: "### Scrittura Creativa ed Empatia\n" + parts[1]
-        });
+    // Comprensione: "### A. Domande aperte" e "### B. Vero o Falso" diventano esercizi selezionabili separatamente
+    if (cls.type === "comprensione") {
+      const subExercises = splitLetteredSubsections(sectionChunk, `${safeFileId}_sec_${i}`);
+      if (subExercises) {
+        exercises.push(...subExercises);
         continue;
       }
     }
 
-    exercises.push({
-      id: `${safeFileId}_sec_${i}`,
-      type: type,
-      typeLabel: typeLabel,
-      title: current.title.replace(/^[0-9]+\.\s*/, ''),
-      desc: desc,
-      defaultSelected: defaultSelected,
-      contentHtml: markdownToHtml(sectionChunk),
-      rawMarkdown: sectionChunk
-    });
-  }
+    // Retrocompatibilità: Sezione combinata Analisi del Personaggio + Scrittura Creativa nello stesso H2
+    const analSplitRegex = /(?:###\s+B\.\s+|####\s+(?:Spazio\s+)?Scrittura)/i;
+    if (cls.type === "analisi" && analSplitRegex.test(sectionChunk)) {
+      const parts = sectionChunk.split(analSplitRegex);
+      if (parts.length > 1) {
+        exercises.push(makeExercise(
+          `${safeFileId}_sec_${i}_a`,
+          { type: "analisi", typeLabel: "Analisi Personaggi", desc: "Riflessione sui conflitti interiori e sulle scelte etiche." },
+          "Analisi del Personaggio e Riflessione",
+          parts[0]
+        ));
+        exercises.push(makeExercise(
+          `${safeFileId}_sec_${i}_b`,
+          { type: "scrittura", typeLabel: "Officina di Scrittura", desc: "Traccia di immedesimazione personale o monologo interiore." },
+          "Spunto di Scrittura Creativa ed Empatia",
+          "### Scrittura Creativa ed Empatia\n" + parts[1]
+        ));
+        continue;
+      }
+    }
 
-  let chaptersInfo = "";
-  const capMatch = blockTitle.match(/:\s*(.+)$/);
-  if (capMatch) {
-    chaptersInfo = capMatch[1];
+    exercises.push(makeExercise(
+      `${safeFileId}_sec_${i}`,
+      cls,
+      current.title.replace(/^[0-9]+\.\s*/, ''),
+      sectionChunk
+    ));
   }
 
   return {
     filename: filename,
-    bookTitle: bookTitle,
+    blockNumber: blockNumber,
     title: blockTitle,
-    chapters: chaptersInfo || filename.replace(/\.md$/, ''),
     welcomeNote: welcomeNote,
     teacherGuideMd: teacherGuideMd,
     exercises: exercises,
@@ -164,9 +218,44 @@ function parseWorksheetMarkdown(filename, rawMd) {
   };
 }
 
+// Sanitizzazione dell'HTML generato dal Markdown (i file .md possono provenire da AI o da terzi):
+// mantiene solo tag e attributi di formattazione, rimuove script, gestori di eventi e URL "javascript:"
+const SANITIZE_ALLOWED_TAGS = new Set(['DIV', 'SPAN', 'P', 'BR', 'STRONG', 'EM', 'B', 'I', 'U', 'S', 'SUB', 'SUP', 'SMALL', 'MARK', 'CODE', 'PRE', 'BLOCKQUOTE', 'HR', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TH', 'TD', 'A']);
+const SANITIZE_DROPPED_TAGS = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'FRAME', 'OBJECT', 'EMBED', 'TEMPLATE', 'NOSCRIPT', 'LINK', 'META', 'BASE', 'FORM', 'INPUT', 'TEXTAREA', 'SELECT', 'BUTTON']);
+const SANITIZE_ALLOWED_ATTRS = new Set(['class', 'style', 'colspan', 'rowspan', 'title', 'href']);
+
+function sanitizeHtml(html) {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html;
+  const walk = (parent) => {
+    Array.from(parent.children).forEach(el => {
+      const tag = el.tagName.toUpperCase();
+      if (SANITIZE_DROPPED_TAGS.has(tag)) {
+        el.remove();
+        return;
+      }
+      walk(el);
+      if (!SANITIZE_ALLOWED_TAGS.has(tag)) {
+        el.replaceWith(...el.childNodes);
+        return;
+      }
+      Array.from(el.attributes).forEach(attr => {
+        const name = attr.name.toLowerCase();
+        if (!SANITIZE_ALLOWED_ATTRS.has(name)) {
+          el.removeAttribute(attr.name);
+        } else if (name === 'href' && /^\s*(?:javascript|data|vbscript):/i.test(attr.value)) {
+          el.removeAttribute(attr.name);
+        }
+      });
+    });
+  };
+  walk(tpl.content);
+  return tpl.innerHTML;
+}
+
 // Formattatore Markdown -> HTML con filtri di pulizia e conteggio righe reale
 function markdownToHtml(md, wrapperClass = 'doc-section') {
-  let h = md;
+  let h = String(md || '').replace(/\r\n?/g, '\n');
   // Pulizia artefatti: blocchi ```, righe di ===, +---+, e ---
   h = h.replace(/^[ \t]*```[a-zA-Z]*[ \t]*$/gm, '');
   h = h.replace(/^[ \t]*={5,}[ \t]*$/gm, '');
@@ -191,16 +280,17 @@ function markdownToHtml(md, wrapperClass = 'doc-section') {
   h = h.replace(/\\leftarrow/g, '←');
   h = h.replace(/<--/g, '←');
 
-  // Righe di quaderno per risposta scritta: rispetta il numero esatto di righe '_' presenti nel Markdown
-  h = h.replace(/((?:_{5,}[ \t]*\r?\n?)+)/g, (match) => {
+  // Righe di quaderno per risposta scritta: righe consecutive (anche rientrate) formano un unico blocco
+  // con il numero esatto di righe presenti nel Markdown; i trattini bassi dentro una frase restano testo
+  h = h.replace(/(?:^[ \t]*_{5,}[ \t]*(?:\n|$))+/gm, (match) => {
     const count = (match.match(/_{5,}/g) || []).length;
     const linesHtml = '<div class="write-line"></div>'.repeat(Math.max(1, count));
     return `\n\n<div class="write-lines">${linesHtml}</div>\n\n`;
   });
-  
+
   // Tabelle Markdown
-  h = h.replace(/((?:^[ \t]*\|.+\|[ \t]*(?:\r?\n|$))+)/gm, function(tableBlock) {
-    const rawLines = tableBlock.trim().split(/\r?\n/).map(l => l.trim()).filter(l => l.startsWith('|') && l.endsWith('|'));
+  h = h.replace(/((?:^[ \t]*\|.+\|[ \t]*(?:\n|$))+)/gm, function(tableBlock) {
+    const rawLines = tableBlock.trim().split(/\n/).map(l => l.trim()).filter(l => l.startsWith('|') && l.endsWith('|'));
     if (rawLines.length === 0) return tableBlock;
 
     const blockTextLower = tableBlock.toLowerCase();
@@ -211,7 +301,7 @@ function markdownToHtml(md, wrapperClass = 'doc-section') {
     let isFirst = true;
 
     rawLines.forEach(line => {
-      if (line.includes('---')) return;
+      if (/^\|[\s:|-]+\|$/.test(line)) return;
 
       const cells = line.slice(1, -1).split('|').map(c => c.trim());
       if (cells.length === 0 || (cells.length === 1 && cells[0] === '')) return;
@@ -236,7 +326,7 @@ function markdownToHtml(md, wrapperClass = 'doc-section') {
             if (idx === 0) cls = ' class="col-term"';
             else if (idx === 1) {
               cls = ' class="col-match"';
-              formatted = formatted.replace(/(?:<strong>)?\[\s*(&nbsp;)?\s*\](?:<\/strong>)?/g, '<span class="matching-box">[ &nbsp;&nbsp; ]</span>');
+              formatted = formatted.replace(/(?:<strong>)?\[(?:\s|&nbsp;)*\](?:<\/strong>)?/g, '<span class="matching-box">[ &nbsp;&nbsp; ]</span>');
             } else if (idx === 2) cls = ' class="col-def"';
           }
           return `<td${cls}>${formatted}</td>`;
@@ -277,57 +367,98 @@ function markdownToHtml(md, wrapperClass = 'doc-section') {
     }
   }
 
-  return `<div class="${wrapperClass}">${finalBlocks.join('\n')}</div>`;
+  return sanitizeHtml(`<div class="${wrapperClass}">${finalBlocks.join('\n')}</div>`);
 }
 
 // 2. Caricamento e Parsing dei Dataset (in memoria)
-function loadRawWorksheets(worksheetsArray) {
-  if (!worksheetsArray || worksheetsArray.length === 0) {
-    showEmptyState();
-    return;
-  }
 
-  RAW_FILES_CACHE.clear();
-  worksheetsArray.forEach(item => {
-    RAW_FILES_CACHE.set(item.filename, item.markdown);
-    if (!ORIGINAL_FILES_CACHE.has(item.filename)) {
-      ORIGINAL_FILES_CACHE.set(item.filename, item.markdown);
-    }
-  });
-
-  // 1. Recupero diretto dei metadati da 'dati_libro.md'
-  const datiLibroItem = worksheetsArray.find(item => item.filename && item.filename.toLowerCase() === 'dati_libro.md');
+// Titolo del libro: da dati_libro.md, altrimenti dal sottotitolo "## *Titolo* di Autore" della prima scheda
+function extractBookTitle(worksheets) {
+  const datiLibroItem = worksheets.find(item => isDatiLibro(item.filename));
   if (datiLibroItem) {
     const tMatch = datiLibroItem.markdown.match(/\*{0,2}Titolo\*{0,2}:\*{0,2}\s*(.+)$/mi);
     const aMatch = datiLibroItem.markdown.match(/\*{0,2}Autore\*{0,2}:\*{0,2}\s*(.+)$/mi);
     const t = tMatch ? tMatch[1].replace(/\*/g, '').trim() : '';
     const a = aMatch ? aMatch[1].replace(/\*/g, '').trim() : '';
     if (t) {
-      globalBookTitle = a ? `${t} di ${a}` : t;
+      return a ? `${t} di ${a}` : t;
     }
-  } else {
-    globalBookTitle = "Schede Didattiche di Lettura";
   }
 
-  BLOCKS_DATA = [];
-  const exerciseSheets = worksheetsArray.filter(item => !item.filename || item.filename.toLowerCase() !== 'dati_libro.md');
+  for (const item of worksheets) {
+    if (isDatiLibro(item.filename)) continue;
+    const h2 = item.markdown.match(/^##\s+(?![0-9]+\.)(.+)$/m);
+    if (h2) {
+      const t = h2[1].replace(/\*/g, '').trim();
+      if (t && !t.startsWith('[')) return t;
+    }
+  }
+  return DEFAULT_BOOK_TITLE;
+}
 
-  if (exerciseSheets.length === 0) {
+// Sostituisce completamente l'insieme di file caricato (nuova cartella, sito, localStorage).
+// "originalsArray" indica le versioni da usare per "Ripristina Iniziale" (es. quelle pubblicate sul sito)
+function loadRawWorksheets(worksheetsArray, originalsArray = null) {
+  RAW_FILES_CACHE.clear();
+  ORIGINAL_FILES_CACHE.clear();
+  Object.keys(selectedState).forEach(key => delete selectedState[key]);
+  BLOCKS_DATA = [];
+  currentBlockId = null;
+
+  (worksheetsArray || []).forEach(item => {
+    RAW_FILES_CACHE.set(item.filename, item.markdown);
+    ORIGINAL_FILES_CACHE.set(item.filename, item.markdown);
+  });
+  (originalsArray || []).forEach(item => {
+    if (RAW_FILES_CACHE.has(item.filename)) {
+      ORIGINAL_FILES_CACHE.set(item.filename, item.markdown);
+    }
+  });
+
+  rebuildBlocksFromCache();
+}
+
+// Ricostruisce i blocchi dalla cache dei file conservando le selezioni degli esercizi già noti;
+// gli esercizi nuovi (es. aggiunti nell'editor) vengono selezionati di default
+function rebuildBlocksFromCache(focusFilename = null) {
+  const previousBlocks = new Map(BLOCKS_DATA.map(b => [b.filename, b]));
+  const currentBlock = BLOCKS_DATA.find(b => b.id === currentBlockId);
+  const targetFilename = focusFilename || (currentBlock ? currentBlock.filename : null);
+
+  const worksheets = getAllRawWorksheets();
+  globalBookTitle = extractBookTitle(worksheets);
+
+  BLOCKS_DATA = worksheets
+    .filter(item => !isDatiLibro(item.filename))
+    .map((item, index) => {
+      const parsed = parseWorksheetMarkdown(item.filename, item.markdown);
+      parsed.id = index + 1;
+
+      const previous = previousBlocks.get(item.filename);
+      const previousSelection = selectedState[item.filename];
+      if (previous && previousSelection) {
+        const knownIds = new Set(previous.exercises.map(ex => ex.id));
+        selectedState[item.filename] = new Set(
+          parsed.exercises.filter(ex => !knownIds.has(ex.id) || previousSelection.has(ex.id)).map(ex => ex.id)
+        );
+      } else {
+        selectedState[item.filename] = new Set(parsed.exercises.map(ex => ex.id));
+      }
+      return parsed;
+    });
+
+  Object.keys(selectedState).forEach(key => {
+    if (!BLOCKS_DATA.some(b => b.filename === key)) delete selectedState[key];
+  });
+
+  if (BLOCKS_DATA.length === 0) {
+    currentBlockId = null;
     showEmptyState();
     return;
   }
 
-  exerciseSheets.forEach((item, index) => {
-    const parsed = parseWorksheetMarkdown(item.filename, item.markdown);
-    parsed.id = index + 1;
-    BLOCKS_DATA.push(parsed);
-
-    if (!selectedState[parsed.id] || selectedState[parsed.id].size === 0) {
-      selectedState[parsed.id] = new Set(
-        parsed.exercises.map(ex => ex.id)
-      );
-    }
-  });
+  const focused = BLOCKS_DATA.find(b => b.filename === targetFilename);
+  currentBlockId = focused ? focused.id : BLOCKS_DATA[0].id;
 
   const dropzone = document.getElementById('dropzone-banner');
   if (dropzone) dropzone.style.display = 'none';
@@ -339,14 +470,38 @@ function loadRawWorksheets(worksheetsArray) {
   if (grid) grid.style.display = 'flex';
 
   document.getElementById('app-book-title').textContent = globalBookTitle;
-  document.getElementById('app-book-subtitle').textContent = `Caricate ${BLOCKS_DATA.length} unità didattiche (${exerciseSheets.length} file elaborati)`;
+  document.getElementById('app-book-subtitle').textContent = `Caricate ${BLOCKS_DATA.length} unità didattiche (${worksheets.length} file elaborati)`;
   document.getElementById('blocks-count-badge').textContent = `${BLOCKS_DATA.length} Unità`;
 
-  if (!currentBlockId || !BLOCKS_DATA.some(b => b.id === currentBlockId)) {
-    currentBlockId = BLOCKS_DATA[0].id;
-  }
   renderSidebar();
   renderActiveBlock();
+}
+
+// Salva l'insieme di file nel browser; "locallyEdited" indica modifiche non presenti sul sito
+function saveBookToStorage(locallyEdited) {
+  try {
+    localStorage.setItem(BOOK_STORAGE_KEY, JSON.stringify(getAllRawWorksheets()));
+    if (locallyEdited) {
+      localStorage.setItem(LOCAL_EDITS_STORAGE_KEY, '1');
+    } else {
+      localStorage.removeItem(LOCAL_EDITS_STORAGE_KEY);
+    }
+  } catch (err) {
+    console.warn("Storage quota superata o disattivata", err);
+  }
+}
+
+function readBookFromStorage() {
+  try {
+    const saved = localStorage.getItem(BOOK_STORAGE_KEY);
+    if (!saved) return null;
+    const data = JSON.parse(saved);
+    if (!Array.isArray(data) || data.length === 0) return null;
+    return { worksheets: data, locallyEdited: localStorage.getItem(LOCAL_EDITS_STORAGE_KEY) === '1' };
+  } catch (err) {
+    console.warn("Storage non accessibile", err);
+    return null;
+  }
 }
 
 function showEmptyState() {
@@ -359,10 +514,12 @@ function showEmptyState() {
   const grid = document.getElementById('exercises-grid');
   if (grid) grid.style.display = 'none';
   const list = document.getElementById('blocks-list');
-  if (list) list.innerHTML = '<div style="padding: 1.5rem 1rem; color: #94a3b8; font-size: 0.85rem; text-align: center;">Nessun blocco caricato.<br>Carica la cartella <code>schede_esercizi/</code>.</div>';
+  if (list) list.innerHTML = '<div style="padding: 1.5rem 1rem; color: #94a3b8; font-size: 0.85rem; text-align: center;">Nessuna scheda ancora.<br>Segui i passaggi della guida per crearle.</div>';
   document.getElementById('app-book-title').textContent = "Generatore Schede Didattiche & PDF";
-  document.getElementById('app-book-subtitle').innerHTML = "Carica la cartella <code>schede_esercizi/</code> per iniziare";
+  document.getElementById('app-book-subtitle').textContent = "Segui i 4 passaggi per creare le schede del tuo libro";
   document.getElementById('blocks-count-badge').textContent = "0 Unità";
+  const closeBtn = document.getElementById('start-guide-close');
+  if (closeBtn) closeBtn.style.display = 'none';
 }
 
 function showNotificationToast(msg) {
@@ -380,10 +537,11 @@ function showNotificationToast(msg) {
   }, 3500);
 }
 
-// 3. Caricamento Silenzioso all'Avvio (schede_esercizi/) senza generare decine di 404
-async function tryAutoLoadFromServer() {
-  if (window.location.protocol === 'file:') return false;
+// 3. Lettura silenziosa delle schede pubblicate (schede_esercizi/) senza generare decine di 404
+async function fetchServerWorksheets() {
+  if (window.location.protocol === 'file:') return [];
 
+  const worksheets = [];
   try {
     let fileList = [];
 
@@ -400,12 +558,10 @@ async function tryAutoLoadFromServer() {
       }
     } catch (_) {}
 
-    const worksheets = [];
-
     if (fileList.length > 0) {
       const fetchPromises = fileList.map(async (filename) => {
         try {
-          const res = await fetch(`schede_esercizi/${filename}`);
+          const res = await fetch(`schede_esercizi/${encodeURIComponent(filename)}`);
           if (res.ok) {
             const text = await res.text();
             if (text && text.trim().length > 0) {
@@ -418,7 +574,7 @@ async function tryAutoLoadFromServer() {
       const results = await Promise.all(fetchPromises);
       worksheets.push(...results.filter(Boolean));
     } else {
-      // 2. Fallback sequenziale intelligente: si ferma subito al primo 404 evitando 30 chiamate a vuoto
+      // 2. Fallback sequenziale: si ferma al primo blocco mancante (massimo 30 blocchi)
       try {
         const datiRes = await fetch('schede_esercizi/dati_libro.md');
         if (datiRes.ok) {
@@ -445,26 +601,46 @@ async function tryAutoLoadFromServer() {
         }
       }
     }
-
-    if (worksheets.length > 0) {
-      worksheets.sort((a, b) => a.filename.localeCompare(b.filename));
-      loadRawWorksheets(worksheets);
-      try {
-        localStorage.setItem('ANALISI_LIBRO_LAST_BOOK', JSON.stringify(worksheets));
-      } catch (_) {}
-      return true;
-    }
   } catch (_) {}
 
-  return false;
+  worksheets.sort((a, b) => compareFilenames(a.filename, b.filename));
+  return worksheets;
 }
 
 // 4. Gestione File e Cartelle Locali (File API & FileReader)
+
+// File di documentazione del repository da non trattare come schede
+const NON_WORKSHEET_FILES = new Set(['readme.md', 'prompt.md', 'contesto_didattico.md', 'security.md', 'changelog.md', 'license.md']);
+
+// Filtra la selezione: se ci sono file "blocco_XX..." tiene solo quelli e dati_libro.md,
+// altrimenti tutti i .md tranne la documentazione; scarta i nomi duplicati (sottocartelle)
+function selectWorksheetFiles(files) {
+  const mdFiles = files.filter(f => f.name.toLowerCase().endsWith('.md'));
+  const isBlockFile = f => /^blocco_?[0-9]+.*\.md$/i.test(f.name);
+  const candidates = mdFiles.some(isBlockFile)
+    ? mdFiles.filter(f => isBlockFile(f) || isDatiLibro(f.name))
+    : mdFiles.filter(f => !NON_WORKSHEET_FILES.has(f.name.toLowerCase()));
+
+  const seen = new Set();
+  const unique = candidates.filter(f => {
+    const key = f.name.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  const ignored = mdFiles.length - unique.length;
+  if (ignored > 0 && unique.length > 0) {
+    showNotificationToast(`ℹ️ Ignorati ${ignored} file .md non riconosciuti come schede o con nome duplicato.`);
+  }
+  return unique;
+}
+
 function handleFolderSelect(fileList) {
   if (!fileList || fileList.length === 0) return;
-  const files = Array.from(fileList).filter(f => f.name.toLowerCase().endsWith('.md'));
+  const files = selectWorksheetFiles(Array.from(fileList));
   if (files.length === 0) {
-    alert("Nessun file Markdown (.md) trovato nella selezione.");
+    alert("Nessun file Markdown (.md) di schede trovato nella selezione.");
     return;
   }
   processMdFiles(files);
@@ -474,6 +650,12 @@ function processMdFiles(files) {
   const worksheets = [];
   let readCount = 0;
 
+  const finish = () => {
+    worksheets.sort((a, b) => compareFilenames(a.filename, b.filename));
+    loadRawWorksheets(worksheets);
+    saveBookToStorage(false);
+  };
+
   files.forEach(file => {
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -482,22 +664,11 @@ function processMdFiles(files) {
         markdown: e.target.result
       });
       readCount++;
-      if (readCount === files.length) {
-        worksheets.sort((a, b) => a.filename.localeCompare(b.filename));
-        loadRawWorksheets(worksheets);
-        try {
-          localStorage.setItem('ANALISI_LIBRO_LAST_BOOK', JSON.stringify(worksheets));
-        } catch (err) {
-          console.warn("Storage quota superata o disattivata", err);
-        }
-      }
+      if (readCount === files.length) finish();
     };
     reader.onerror = function() {
       readCount++;
-      if (readCount === files.length) {
-        worksheets.sort((a, b) => a.filename.localeCompare(b.filename));
-        loadRawWorksheets(worksheets);
-      }
+      if (readCount === files.length) finish();
     };
     reader.readAsText(file, 'utf-8');
   });
@@ -544,12 +715,26 @@ async function getFilesFromDataTransferItems(items) {
 }
 
 // 4. UI Rendering
+
+// Selezione corrente di un blocco (tutti gli esercizi se non ancora definita)
+function getSelection(block) {
+  if (!selectedState[block.filename]) {
+    selectedState[block.filename] = new Set(block.exercises.map(ex => ex.id));
+  }
+  return selectedState[block.filename];
+}
+
+function getSelectedExercises(block) {
+  const selection = getSelection(block);
+  return block.exercises.filter(ex => selection.has(ex.id));
+}
+
 function renderSidebar() {
   const container = document.getElementById('blocks-list');
   container.innerHTML = '';
 
   BLOCKS_DATA.forEach(block => {
-    const selectedCount = selectedState[block.id] ? selectedState[block.id].size : 0;
+    const selectedCount = getSelection(block).size;
     const totalCount = block.exercises.length;
     const isActive = block.id === currentBlockId;
 
@@ -559,7 +744,7 @@ function renderSidebar() {
 
     el.innerHTML = `
       <div class="block-item-top">
-        <span class="block-badge">BLOCCO ${block.id}</span>
+        <span class="block-badge">BLOCCO ${block.blockNumber ?? block.id}</span>
         <span class="selection-counter">${selectedCount}/${totalCount} scelti</span>
       </div>
       <div class="block-title">${escapeHtml(block.title)}</div>
@@ -573,7 +758,7 @@ function selectBlock(id) {
   currentBlockId = id;
   renderSidebar();
   renderActiveBlock();
-  
+
   if (window.innerWidth <= 900) {
     setTimeout(() => {
       const activeEl = document.querySelector('.block-item.active');
@@ -605,8 +790,9 @@ function renderActiveBlock() {
     return;
   }
 
+  const selection = getSelection(block);
   block.exercises.forEach(ex => {
-    const isSelected = selectedState[block.id].has(ex.id);
+    const isSelected = selection.has(ex.id);
     const card = document.createElement('div');
     card.className = `exercise-card ${isSelected ? 'selected' : ''}`;
 
@@ -643,8 +829,9 @@ function renderActiveBlock() {
 }
 
 function toggleExercise(exerciseId) {
-  const set = selectedState[currentBlockId];
-  if (!set) return;
+  const block = BLOCKS_DATA.find(b => b.id === currentBlockId);
+  if (!block) return;
+  const set = getSelection(block);
   if (set.has(exerciseId)) {
     set.delete(exerciseId);
   } else {
@@ -657,13 +844,15 @@ function toggleExercise(exerciseId) {
 function selectAll() {
   const block = BLOCKS_DATA.find(b => b.id === currentBlockId);
   if (!block) return;
-  selectedState[block.id] = new Set(block.exercises.map(e => e.id));
+  selectedState[block.filename] = new Set(block.exercises.map(e => e.id));
   renderActiveBlock();
   renderSidebar();
 }
 
 function deselectAll() {
-  selectedState[currentBlockId] = new Set();
+  const block = BLOCKS_DATA.find(b => b.id === currentBlockId);
+  if (!block) return;
+  selectedState[block.filename] = new Set();
   renderActiveBlock();
   renderSidebar();
 }
@@ -673,7 +862,7 @@ function selectEssentialBes() {
   const block = BLOCKS_DATA.find(b => b.id === currentBlockId);
   if (!block) return;
   const essentialTypes = new Set(['comprensione', 'vf', 'lessico']);
-  selectedState[block.id] = new Set(
+  selectedState[block.filename] = new Set(
     block.exercises.filter(e => essentialTypes.has(e.type)).map(e => e.id)
   );
   renderActiveBlock();
@@ -682,8 +871,8 @@ function selectEssentialBes() {
 }
 
 function updateSelectionBadge() {
-  const count = selectedState[currentBlockId] ? selectedState[currentBlockId].size : 0;
   const block = BLOCKS_DATA.find(b => b.id === currentBlockId);
+  const count = block ? getSelection(block).size : 0;
   const total = block ? block.exercises.length : 0;
   document.getElementById('selected-badge').textContent = `${count} di ${total} selezionati`;
 }
@@ -709,7 +898,7 @@ function toggleDsaMode() {
 }
 
 function buildSingleBlockPrintableHtml(block) {
-  const selectedExercises = block.exercises.filter(ex => selectedState[block.id] && selectedState[block.id].has(ex.id));
+  const selectedExercises = getSelectedExercises(block);
 
   let exercisesHtml = '';
   if (selectedExercises.length === 0) {
@@ -720,7 +909,7 @@ function buildSingleBlockPrintableHtml(block) {
       </div>
     `;
   } else {
-    exercisesHtml = selectedExercises.map(ex => ex.contentHtml).join('\n');
+    exercisesHtml = joinSelectedExercises(selectedExercises, 'html');
   }
 
   return `
@@ -754,13 +943,15 @@ function buildPrintableHtml() {
 
 let currentPreviewType = 'student'; // 'student' | 'teacher' | 'full'
 
+// Dall'anteprima il DOCX eredita l'impostazione Alta Leggibilità (DSA) attiva
 function exportCurrentPreviewDocx() {
+  const opts = { dsa: isDsaMode };
   if (currentPreviewType === 'teacher') {
-    exportTeacherDocx();
+    exportTeacherDocx(opts);
   } else if (currentPreviewType === 'full') {
-    exportFullBookDocx();
+    exportFullBookDocx(opts);
   } else {
-    exportStudentDocx();
+    exportStudentDocx(opts);
   }
 }
 
@@ -779,11 +970,17 @@ function openFullBookPreview() {
     showNotificationToast("Nessun blocco didattico caricato.");
     return;
   }
+  // Come nel DOCX, le unità senza esercizi selezionati non vengono incluse nel fascicolo
+  const blocksWithSelection = BLOCKS_DATA.filter(block => getSelectedExercises(block).length > 0);
+  if (blocksWithSelection.length === 0) {
+    showNotificationToast("Nessun esercizio selezionato in nessuna unità.");
+    return;
+  }
   currentPreviewType = 'full';
   const modalTitle = document.querySelector('#preview-modal .modal-title');
-  if (modalTitle) modalTitle.textContent = `Fascicolo Completo Studenti (${BLOCKS_DATA.length} Unità Didattiche)`;
+  if (modalTitle) modalTitle.textContent = `Fascicolo Completo Studenti (${blocksWithSelection.length} Unità Didattiche)`;
 
-  const fullHtml = BLOCKS_DATA.map((block, idx) => {
+  const fullHtml = blocksWithSelection.map((block, idx) => {
     const blockHtml = buildSingleBlockPrintableHtml(block);
     return idx === 0 ? blockHtml : `<div class="page-break-block">${blockHtml}</div>`;
   }).join('\n');
@@ -878,7 +1075,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (dz) dz.classList.remove('dragover');
 
     if (e.dataTransfer && e.dataTransfer.items) {
-      const files = await getFilesFromDataTransferItems(e.dataTransfer.items);
+      const files = selectWorksheetFiles(await getFilesFromDataTransferItems(e.dataTransfer.items));
       if (files.length > 0) {
         processMdFiles(files);
         return;
@@ -949,25 +1146,56 @@ window.addEventListener('DOMContentLoaded', async () => {
       if (pcm && pcm.classList.contains('open')) {
         closePromptContextModal();
       }
+      const aim = document.getElementById('ai-import-modal');
+      if (aim && aim.classList.contains('open')) {
+        closeAiImportModal();
+      }
     }
   });
 
-  // 1. Tenta il caricamento automatico silenzioso dal server/repository
-  const loadedFromServer = await tryAutoLoadFromServer();
-  if (loadedFromServer) return;
-
-  // 2. Se non caricato dal server, tenta il ripristino da localStorage
-  try {
-    const saved = localStorage.getItem('ANALISI_LIBRO_LAST_BOOK');
-    if (saved) {
-      const data = JSON.parse(saved);
-      if (Array.isArray(data) && data.length > 0) {
-        loadRawWorksheets(data);
-        return;
+  const aiImportModal = document.getElementById('ai-import-modal');
+  if (aiImportModal) {
+    aiImportModal.addEventListener('click', (e) => {
+      if (e.target === aiImportModal) {
+        closeAiImportModal();
       }
+    });
+  }
+
+  // Guida rapida: precaricamento di prompt e contesto (la copia negli appunti deve avvenire
+  // subito dopo il clic, senza attendere una richiesta di rete)
+  ensurePromptAndContextLoaded();
+
+  // 1. Schede pubblicate sul sito (schede_esercizi/) e copia salvata nel browser
+  const serverWorksheets = await fetchServerWorksheets();
+  const stored = readBookFromStorage();
+
+  // 2. Le modifiche locali (editor / importazione AI) non vengono mai sovrascritte senza chiedere
+  if (stored && stored.locallyEdited && serverWorksheets.length > 0) {
+    const keepLocal = confirm(
+      "Nel browser sono presenti modifiche alle schede (editor o importazione AI) che non sono pubblicate sul sito.\n\n" +
+      "OK = ripristina le tue modifiche locali\n" +
+      "Annulla = carica le schede pubblicate sul sito (le modifiche locali verranno scartate)"
+    );
+    if (keepLocal) {
+      loadRawWorksheets(stored.worksheets, serverWorksheets);
+      showNotificationToast("↩️ Modifiche locali ripristinate. \"Ripristina Iniziale\" riporta alla versione del sito.");
+    } else {
+      loadRawWorksheets(serverWorksheets);
+      saveBookToStorage(false);
     }
-  } catch (err) {
-    console.warn("Storage non accessibile", err);
+    return;
+  }
+
+  if (serverWorksheets.length > 0) {
+    loadRawWorksheets(serverWorksheets);
+    saveBookToStorage(false);
+    return;
+  }
+
+  if (stored) {
+    loadRawWorksheets(stored.worksheets);
+    return;
   }
 
   // 3. Stato vuoto iniziale
@@ -1011,7 +1239,7 @@ function openMdEditor(targetBlockIdOrFilename = null) {
   }
 
   if (!targetFile) {
-    const keys = Array.from(RAW_FILES_CACHE.keys()).sort();
+    const keys = Array.from(RAW_FILES_CACHE.keys()).sort(compareFilenames);
     const firstBlock = keys.find(k => k.toLowerCase() !== 'dati_libro.md') || keys[0];
     targetFile = firstBlock;
   }
@@ -1041,7 +1269,7 @@ function populateEditorFileSelect() {
   if (!select) return;
   select.innerHTML = '';
 
-  const keys = Array.from(RAW_FILES_CACHE.keys()).sort((a, b) => a.localeCompare(b));
+  const keys = Array.from(RAW_FILES_CACHE.keys()).sort(compareFilenames);
 
   const datiLibro = keys.find(k => k.toLowerCase() === 'dati_libro.md');
   if (datiLibro) {
@@ -1258,7 +1486,7 @@ function insertEditorSnippet(type) {
       cursorOffset = replacement.length;
       break;
     case 'match_table':
-      replacement = `\n\n| Termine o Modo di Dire | Abbinamento | Significato Contestuale |\n| :--- | :---: | :--- |\n| 1. ${selectedText || 'Primo elemento'} | [ &nbsp;&nbsp; ] | A. Definizione mescolata |\n| 2. Secondo elemento | [ &nbsp;&nbsp; ] | B. Definizione mescolata |\n`;
+      replacement = `\n\n| Termine o Modo di Dire | Abbinamento | Significato Contestuale |\n| :--- | :---: | :--- |\n| 1. ${selectedText || 'Primo elemento'} | [   ] | A. Definizione mescolata |\n| 2. Secondo elemento | [   ] | B. Definizione mescolata |\n`;
       cursorOffset = replacement.length;
       break;
     case 'lines':
@@ -1289,83 +1517,11 @@ function applyEditorChanges() {
 
   const content = textarea.value;
   RAW_FILES_CACHE.set(editorCurrentFile, content);
-
-  if (editorCurrentFile.toLowerCase() === 'dati_libro.md') {
-    applyDatiLibroUpdate(content);
-  } else {
-    applyBlockUpdate(editorCurrentFile, content);
-  }
-
-  try {
-    localStorage.setItem('ANALISI_LIBRO_LAST_BOOK', JSON.stringify(getAllRawWorksheets()));
-  } catch (err) {
-    console.warn("Impossibile salvare in localStorage:", err);
-  }
+  rebuildBlocksFromCache(isDatiLibro(editorCurrentFile) ? null : editorCurrentFile);
+  saveBookToStorage(true);
 
   setEditorDirty(false);
   showNotificationToast(`✅ File "${editorCurrentFile}" salvato e applicato con successo!`);
-}
-
-function applyDatiLibroUpdate(markdown) {
-  const tMatch = markdown.match(/\*{0,2}Titolo\*{0,2}:\*{0,2}\s*(.+)$/mi);
-  const aMatch = markdown.match(/\*{0,2}Autore\*{0,2}:\*{0,2}\s*(.+)$/mi);
-  const t = tMatch ? tMatch[1].replace(/\*/g, '').trim() : '';
-  const a = aMatch ? aMatch[1].replace(/\*/g, '').trim() : '';
-  if (t) {
-    globalBookTitle = a ? `${t} di ${a}` : t;
-  }
-  document.getElementById('app-book-title').textContent = globalBookTitle;
-  BLOCKS_DATA.forEach(b => {
-    b.bookTitle = globalBookTitle;
-  });
-  renderSidebar();
-  renderActiveBlock();
-}
-
-function applyBlockUpdate(filename, markdown) {
-  const parsed = parseWorksheetMarkdown(filename, markdown);
-  const existingIdx = BLOCKS_DATA.findIndex(b => b.filename.toLowerCase() === filename.toLowerCase());
-
-  if (existingIdx !== -1) {
-    const existing = BLOCKS_DATA[existingIdx];
-    parsed.id = existing.id;
-    parsed.rawMarkdown = markdown;
-    BLOCKS_DATA[existingIdx] = parsed;
-
-    const currentSet = selectedState[parsed.id] || new Set();
-    const newSet = new Set();
-    parsed.exercises.forEach(ex => {
-      if (currentSet.has(ex.id) || currentSet.size === 0 || ex.defaultSelected) {
-        newSet.add(ex.id);
-      }
-    });
-    selectedState[parsed.id] = newSet;
-  } else {
-    const newId = BLOCKS_DATA.length + 1;
-    parsed.id = newId;
-    parsed.rawMarkdown = markdown;
-    BLOCKS_DATA.push(parsed);
-    selectedState[newId] = new Set(parsed.exercises.map(ex => ex.id));
-    currentBlockId = newId;
-  }
-
-  const dropzone = document.getElementById('dropzone-banner');
-  if (dropzone) dropzone.style.display = 'none';
-  const hero = document.getElementById('block-hero');
-  if (hero) hero.style.display = 'flex';
-  const toolbar = document.getElementById('selection-toolbar');
-  if (toolbar) toolbar.style.display = 'flex';
-  const grid = document.getElementById('exercises-grid');
-  if (grid) grid.style.display = 'flex';
-
-  const totalFiles = Array.from(RAW_FILES_CACHE.keys()).filter(f => f.toLowerCase() !== 'dati_libro.md').length;
-  document.getElementById('app-book-subtitle').textContent = `Caricate ${BLOCKS_DATA.length} unità didattiche (${totalFiles} file elaborati)`;
-  document.getElementById('blocks-count-badge').textContent = `${BLOCKS_DATA.length} Unità`;
-
-  renderSidebar();
-  if (currentBlockId === parsed.id) {
-    renderActiveBlock();
-  }
 }
 
 function getAllRawWorksheets() {
@@ -1373,7 +1529,7 @@ function getAllRawWorksheets() {
   RAW_FILES_CACHE.forEach((markdown, filename) => {
     list.push({ filename, markdown });
   });
-  list.sort((a, b) => a.filename.localeCompare(b.filename));
+  list.sort((a, b) => compareFilenames(a.filename, b.filename));
   return list;
 }
 
@@ -1385,7 +1541,8 @@ function downloadCurrentEditorFile() {
   showNotificationToast(`⬇️ Download completato per "${editorCurrentFile}"`);
 }
 
-function downloadAllMarkdownFiles() {
+// Scarica tutti i file in un unico .zip (cartella schede_esercizi/ con manifest.json pronta da pubblicare)
+async function downloadAllMarkdownFiles() {
   if (isEditorDirty) {
     applyEditorChanges();
   }
@@ -1394,12 +1551,29 @@ function downloadAllMarkdownFiles() {
     showNotificationToast("Nessun file Markdown presente da scaricare.");
     return;
   }
-  allFiles.forEach((file, idx) => {
-    setTimeout(() => {
-      downloadMarkdownFile(file.filename, file.markdown);
-    }, idx * 250);
-  });
-  showNotificationToast(`📦 Avviato il download di ${allFiles.length} file Markdown!`);
+
+  if (typeof JSZip === 'undefined') {
+    allFiles.forEach((file, idx) => {
+      setTimeout(() => {
+        downloadMarkdownFile(file.filename, file.markdown);
+      }, idx * 250);
+    });
+    showNotificationToast(`📦 Avviato il download di ${allFiles.length} file Markdown!`);
+    return;
+  }
+
+  try {
+    const zip = new JSZip();
+    const folder = zip.folder('schede_esercizi');
+    allFiles.forEach(file => folder.file(file.filename, file.markdown));
+    folder.file('manifest.json', JSON.stringify(allFiles.map(file => file.filename), null, 2) + '\n');
+    const blob = await zip.generateAsync({ type: 'blob' });
+    downloadBlob(blob, 'schede_esercizi.zip');
+    showNotificationToast(`📦 Scaricato schede_esercizi.zip con ${allFiles.length} file e manifest.json!`);
+  } catch (err) {
+    console.error(err);
+    showNotificationToast("Errore durante la creazione dell'archivio .zip.");
+  }
 }
 
 function downloadMarkdownFile(filename, content) {
@@ -1474,11 +1648,6 @@ function getStarterWorksheetTemplate(blockNumber = 1) {
 
 ---
 
-**Nome e Cognome dello studente:** ________________________________________  
-**Classe:** ____________________  **Data:** ____________________  
-
----
-
 > ### 🌊 Benvenuto nell'Unità ${blockNumber}!
 > Inserisci qui una frase motivazionale o una citazione per accompagnare la lettura di questi capitoli.
 
@@ -1550,8 +1719,8 @@ ________________________________________________________________________________
 
 | Termine o Modo di Dire | Abbinamento | Significato Contestuale |
 | :--- | :---: | :--- |
-| 1. Primo termine | [ &nbsp;&nbsp; ] | A. Definizione corrispondente al secondo termine |
-| 2. Secondo termine | [ &nbsp;&nbsp; ] | B. Definizione corrispondente al primo termine |
+| 1. Primo termine | [   ] | A. Definizione corrispondente al secondo termine |
+| 2. Secondo termine | [   ] | B. Definizione corrispondente al primo termine |
 
 ---
 
@@ -1671,7 +1840,10 @@ function renderReadmeMarkdown(md) {
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
 
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #2563eb; font-weight: 600; text-decoration: underline;">$1</a>');
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (m, label, href) => {
+    if (/^\s*(?:javascript|data|vbscript):/i.test(href)) return label;
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; font-weight: 600; text-decoration: underline;">${label}</a>`;
+  });
 
   html = html.replace(/^[ \t]*[-*]\s+(.+)$/gm, '<li style="margin-left: 1.4rem; margin-bottom: 0.35rem; color: #334155;">$1</li>');
   html = html.replace(/^[ \t]*([0-9]+)\.\s+(.+)$/gm, '<li style="margin-left: 1.4rem; margin-bottom: 0.35rem; color: #334155;">$2</li>');
@@ -1779,7 +1951,7 @@ function copyCodeSnippet(btn) {
   const code = decodeURIComponent(encoded);
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(code).then(() => {
-      showNotificationToast('📋 Prompt operativo copiato negli appunti! Incollalo in Gemini / NotebookLM.');
+      showNotificationToast('📋 Prompt operativo copiato negli appunti! Incollalo nella chat del taccuino NotebookLM.');
     }).catch(() => {
       fallbackCopyText(code, 'prompt_ai.txt');
     });
@@ -1795,39 +1967,33 @@ function copyCurrentPromptContextText() {
     : (contextRawCache || getFallbackContextText());
   const filename = isPrompt ? 'prompt.md' : 'contesto_didattico.md';
 
-  let textToCopy = fullText;
-  if (isPrompt) {
-    const match = fullText.match(/(?:````|```)(?:markdown)?\r?\n([\s\S]*?)(?:````|```)/);
-    if (match && match[1]) {
-      textToCopy = match[1].trim();
-    }
-  }
+  // Si copia sempre il file integrale (il prompt non contiene blocchi di codice da estrarre)
+  const msg = isPrompt
+    ? '🤖 Prompt operativo per NotebookLM copiato negli appunti!'
+    : `📋 Testo di "${filename}" copiato negli appunti!`;
+  copyTextToClipboard(fullText, msg, filename);
+}
 
+// Copia negli appunti con ripiego per i browser senza Clipboard API
+function copyTextToClipboard(text, successMsg, fallbackFilename) {
+  const onFail = () => fallbackCopyText(text, fallbackFilename, successMsg);
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(textToCopy).then(() => {
-      const msg = isPrompt
-        ? '🤖 Prompt operativo per Gemini/NotebookLM copiato negli appunti!'
-        : `📋 Testo di "${filename}" copiato negli appunti!`;
-      showNotificationToast(msg);
-    }).catch(() => {
-      fallbackCopyText(textToCopy, filename);
-    });
+    navigator.clipboard.writeText(text).then(() => showNotificationToast(successMsg)).catch(onFail);
   } else {
-    fallbackCopyText(textToCopy, filename);
+    onFail();
   }
 }
 
-function fallbackCopyText(text, filename) {
+function fallbackCopyText(text, filename, successMsg = '📋 Testo copiato negli appunti!') {
   const ta = document.createElement('textarea');
   ta.value = text;
   document.body.appendChild(ta);
   ta.select();
+  let copied = false;
   try {
-    document.execCommand('copy');
-    showNotificationToast(`📋 Testo copiato negli appunti!`);
-  } catch (_) {
-    showNotificationToast(`Impossibile copiare automaticamente. Scarica il file "${filename}".`);
-  }
+    copied = document.execCommand('copy');
+  } catch (_) {}
+  showNotificationToast(copied ? successMsg : `Impossibile copiare automaticamente. Scarica il file "${filename}".`);
   document.body.removeChild(ta);
 }
 
@@ -1853,8 +2019,9 @@ function downloadBothPromptAndContext() {
   }, 300);
 }
 
+// Copia di riserva di prompt.md (usata quando l'app è aperta da file://): mantenerla identica al file
 function getFallbackPromptText() {
-  return `Applica rigorosamente la metodologia pedagogica definita nella fonte \`contesto_didattico.md\` al testo integrale del romanzo caricato nel taccuino.
+  return `Applica rigorosamente la metodologia pedagogica definita nella fonte \`contesto_didattico.md\` al testo integrale del romanzo caricato come fonte del taccuino.
 
 Il tuo compito è generare il materiale didattico in formato **Markdown puro**, rispettando al millimetro i marcatori strutturali richiesti dal parser dell'applicazione web di stampa.
 
@@ -1863,16 +2030,26 @@ Il tuo compito è generare il materiale didattico in formato **Markdown puro**, 
 ### PIANO DI ESECUZIONE PROGRESSIVA (ANTI-TRONCAMENTO)
 Per garantire la massima qualità ed evitare tagli dovuti ai limiti di lunghezza delle risposte:
 1. **In questa prima risposta**, genera **esclusivamente**:
-   - La **FASE 1** completa (il file \`dati_libro.md\` e la **Mappatura generale di tutti i blocchi** del romanzo).
-   - La scheda didattica completa del solo **Blocco 1**.
-2. Al termine del Blocco 1 **FERMATI** e attendi il mio comando *"Procedi con il Blocco successivo"* per generare i blocchi seguenti uno alla volta.
+   - Il file \`dati_libro.md\` della **FASE 1** (metadati e Piano delle Unità Didattiche).
+   - Il file \`blocco_01_esercizi.md\` con la scheda didattica completa del **Blocco 1**.
+2. Al termine del Blocco 1 **FERMATI** e attendi il mio comando *"Procedi con il Blocco successivo"*. A ogni comando genera **un solo** file \`blocco_XX_esercizi.md\`, rispettando il Piano delle Unità Didattiche.
 
 ---
 
-### FASE 1: Metadati (\`dati_libro.md\`) e Mappatura Blocchi
+### DELIMITAZIONE DEI FILE (OBBLIGATORIA)
+L'applicazione web separa automaticamente i file incollati grazie a due righe speciali, da scrivere ciascuna da sola su una riga:
+- **Prima di ogni file:** \`[[FILE: nome_del_file.md]]\` (es. \`[[FILE: dati_libro.md]]\`, \`[[FILE: blocco_01_esercizi.md]]\`).
+- **Alla fine di ogni file:** \`[[FINE]]\`.
+- Numera i blocchi sempre con due cifre (\`blocco_01\`, \`blocco_02\`, … \`blocco_10\`).
+- Eventuali commenti o domande rivolti a me vanno scritti solo dopo l'ultima riga \`[[FINE]]\`.
 
-Genera per primo il blocco anagrafico con questa esatta struttura:
+---
 
+### FASE 1: Metadati e Piano delle Unità Didattiche (\`dati_libro.md\`)
+
+Genera il file con questa esatta struttura:
+
+[[FILE: dati_libro.md]]
 # Dati del Libro
 - **Titolo:** [Titolo completo del romanzo]
 - **Autore:** [Nome e cognome dell'autore]
@@ -1883,22 +2060,32 @@ Genera per primo il blocco anagrafico con questa esatta struttura:
 - **Target scolastico:** Scuola secondaria di primo grado (11-13 anni)
 - **Unità didattiche:** [Numero complessivo di blocchi previsti]
 
-Subito dopo, elenca il **Piano delle Unità Didattiche** (Blocco 1, Blocco 2, ecc.) indicando per ciascuno i capitoli inclusi e il nucleo tematico pedagogico.
+## Piano delle Unità Didattiche
+- **Blocco 1** — Capitoli: [capitoli inclusi] · Nucleo tematico: [tema pedagogico] · Attività speciale: [tipologia dal catalogo]
+- **Blocco 2** — Capitoli: [capitoli inclusi] · Nucleo tematico: [tema pedagogico] · Attività speciale: [tipologia dal catalogo]
+
+[[FINE]]
+
+Nel Piano elenca tutti i blocchi del romanzo e assegna a ciascuno l'attività speciale della Sezione 5 secondo la regola di rotazione di \`contesto_didattico.md\` (tutte le sei tipologie prima di ripeterne una, mai la stessa tipologia in due blocchi consecutivi). Nei blocchi successivi rispetta sempre questa assegnazione.
 
 ---
 
 ### FASE 2: Template Obbligatorio per Ciascuna Scheda (\`blocco_XX_esercizi.md\`)
 
-Genera ciascuna scheda didattica seguendo **esattamente** questi titoli, segnaposto e livelli di intestazione (\`#\`, \`##\`, \`###\`):
+**Regole di compilazione** (da applicare, non da trascrivere nella scheda):
+- **Sezione 1.A:** esattamente 5 domande numerate da 1 a 5, ciascuna con la stessa struttura della domanda 1 e seguita da 3 righe di scrittura.
+- **Sezione 1.B:** esattamente 5 affermazioni (2 vere e 3 false, oppure 3 vere e 2 false).
+- **Sezione 2:** esattamente 2 domande numerate (1 e 2), ciascuna seguita da 3 righe di scrittura.
+- **Sezione 4:** 5 termini realmente presenti nei capitoli del blocco, con le definizioni A-E in ordine mescolato.
+- **Sezione 5:** l'attività speciale assegnata a questo blocco nel Piano delle Unità Didattiche.
+- Sostituisci tutti i segnaposto tra parentesi quadre, tranne le caselle \`[ ]\` e \`[   ]\` e il riquadro \`[SPAZIO PER IL TUO DISEGNO / RILIEVO GRAFICO]\`.
 
+Genera ciascuna scheda seguendo **esattamente** questi titoli, segnaposto e livelli di intestazione (\`#\`, \`##\`, \`###\`):
+
+[[FILE: blocco_XX_esercizi.md]]
 # SCHEDA DIDATTICA DI LETTURA E COMPRENSIONE
 ## *[Titolo del Romanzo]* di [Autore]
 ### Unità Didattica [X] (Blocco [X]): *[Capitolo Iniziale]* – *[Capitolo Finale]*
-
----
-
-**Nome e Cognome dello studente:** ________________________________________  
-**Classe:** ____________________  **Data:** ____________________  
 
 ---
 
@@ -1912,13 +2099,11 @@ Genera ciascuna scheda didattica seguendo **esattamente** questi titoli, segnapo
 ### A. Domande a risposta aperta
 *Rispondi in modo completo, motivando le tue risposte con riferimenti precisi al testo.*
 
-1. **[Titolo breve 1ª domanda]:** [Testo della domanda inferenziale/causa-effetto]
+1. **[Titolo breve della domanda]:** [Testo della domanda inferenziale/causa-effetto]
 
    _________________________________________________________________________________________  
    _________________________________________________________________________________________  
    _________________________________________________________________________________________  
-
-*(Prosegui con le domande 2, 3, 4 e 5, inserendo sempre 3 righe di trattini bassi sotto ciascuna domanda)*
 
 ### B. Vero o Falso? (Attenzione ai dettagli)
 *Indica se l'affermazione è Vera [V] o Falsa [F]. Correggi e motiva le affermazioni false sulle righe sottostanti.*
@@ -1938,7 +2123,7 @@ ________________________________________________________________________________
 
 ## 2. Analisi dei Personaggi e Riflessione
 
-1. **[Titolo breve analisi]:** [Domanda approfondita su conflitti interiori, scelte etiche o evoluzione del personaggio]
+1. **[Titolo breve dell'analisi]:** [Domanda approfondita su conflitti interiori, scelte etiche o evoluzione del personaggio]
 
    _________________________________________________________________________________________  
    _________________________________________________________________________________________  
@@ -1962,15 +2147,15 @@ ________________________________________________________________________________
 
 | Termine o Modo di Dire | Abbinamento | Significato Contestuale |
 | :--- | :---: | :--- |
-| 1. **[Termine 1]** | [ &nbsp;&nbsp; ] | A. [Definizione mescolata] |
-| 2. **[Termine 2]** | [ &nbsp;&nbsp; ] | B. [Definizione mescolata] |
-| 3. **[Termine 3]** | [ &nbsp;&nbsp; ] | C. [Definizione mescolata] |
-| 4. **[Termine 4]** | [ &nbsp;&nbsp; ] | D. [Definizione mescolata] |
-| 5. **[Termine 5]** | [ &nbsp;&nbsp; ] | E. [Definizione mescolata] |
+| 1. **[Termine 1]** | [   ] | A. [Definizione mescolata] |
+| 2. **[Termine 2]** | [   ] | B. [Definizione mescolata] |
+| 3. **[Termine 3]** | [   ] | C. [Definizione mescolata] |
+| 4. **[Termine 4]** | [   ] | D. [Definizione mescolata] |
+| 5. **[Termine 5]** | [   ] | E. [Definizione mescolata] |
 
 ## 5. Attività Speciale "Fuori dagli Schemi"
 
-**[Titolo dell'attività speciale scelta a rotazione dal catalogo di \`contesto_didattico.md\`]**  
+**[Titolo dell'attività speciale assegnata a questo blocco nel Piano delle Unità Didattiche]**  
 [Spiegazione chiara della sfida laboratoriale, mappa, indagine o dibattito. Se l'attività prevede una parte grafica o uno schema, inserisci la riga seguente:]
 
 [SPAZIO PER IL TUO DISEGNO / RILIEVO GRAFICO]
@@ -1983,22 +2168,28 @@ ________________________________________________________________________________
 [Sinossi puntuale degli eventi del blocco e coordinate tematiche]
 
 #### Soluzioni ed elementi chiave di correzione
-- **1.A Domande aperte:** [Risposte modello per ciascun quesito 1-5]
+- **1.A Domande aperte:** [Risposta modello per ciascuna delle 5 domande]
 - **1.B Vero o Falso:** [Es. 1. V; 2. F (correzione...); 3. V; 4. F (correzione...); 5. F (correzione...)]
-- **2. Analisi dei Personaggi:** [Elementi chiave della riflessione attesa]
+- **2. Analisi dei Personaggi:** [Elementi chiave della riflessione attesa per ciascuna delle 2 domande]
+- **3. Officina di Scrittura:** [Criteri di valutazione della produzione scritta]
 - **4. Laboratorio Lessicale:** [Combinazione corretta mescolata, es. 1-C, 2-E, 3-A, 4-B, 5-D]
 - **5. Attività Speciale:** [Indicazioni pratiche di conduzione in classe e criteri di valutazione]
+
+[[FINE]]
 
 ---
 
 ### VINCOLI TECNICI TASSATIVI PER IL PARSER WEB:
-1. **ZERO blocchi di codice (\` \`\`\` \`):** Non racchiudere mai la scheda o parti di essa dentro blocchi con triplo apice inverso. Scrivi direttamente in Markdown normale.
-2. **ZERO ASCII-art:** Non disegnare mai scatole o cornici con caratteri testuali (\`+---+\`, \`| |\`, \`===\`).
-3. **Marcatori esatti:** Usa sempre \`_________________________________________________________________________________________\` per le righe di scrittura, \`[ &nbsp;&nbsp; ]\` nella colonna centrale del lessico, \`[SPAZIO PER IL TUO DISEGNO / RILIEVO GRAFICO]\` per i riquadri da disegno e \`### GUIDA E RIASSUNTO PER IL DOCENTE\` per separare la guida insegnante.
+1. **ZERO blocchi di codice:** non racchiudere mai la scheda o parti di essa tra tripli apici inversi. Scrivi direttamente in Markdown normale.
+2. **ZERO ASCII-art:** non disegnare mai scatole o cornici con caratteri testuali (\`+---+\`, \`| |\`, \`===\`).
+3. **ZERO HTML:** non usare tag HTML né entità come \`&nbsp;\`.
+4. **Marcatori esatti:** usa sempre righe di soli trattini bassi \`_________________________________________________________________________________________\` (ciascuna su una riga propria) per le righe di scrittura, \`[   ]\` nella colonna Abbinamento del lessico, \`[SPAZIO PER IL TUO DISEGNO / RILIEVO GRAFICO]\` per i riquadri da disegno, \`### GUIDA E RIASSUNTO PER IL DOCENTE\` per separare la guida insegnante e le righe \`[[FILE: ...]]\` / \`[[FINE]]\` per delimitare ogni file.
 
-Inizia ora con la **Fase 1** completa e la scheda del **Blocco 1**.\n`;
+Inizia ora con il file \`dati_libro.md\` (Fase 1) e la scheda del **Blocco 1**.
+`;
 }
 
+// Copia di riserva di contesto_didattico.md (usata quando l'app è aperta da file://): mantenerla identica al file
 function getFallbackContextText() {
   return `# Metodologia Pedagogica e Linee Guida di Progettazione Didattica
 
@@ -2022,6 +2213,7 @@ Prima di elaborare qualsiasi scheda didattica, analizza il testo secondo questi 
 - Evita sia il linguaggio infantile sia il tecnicismo accademico astratto: guida i ragazzi a ragionare sul testo come piccoli investigatori e critici letterari.
 
 ### B. Domande di Comprensione (Inferenziali vs Mnemoniche)
+- Proponi **5 domande aperte** per ogni blocco.
 - **VIETATO porre domande puramente nozionistiche o mnemoniche** su dettagli irrilevanti (es. *NO: "Di che colore è il cappello del protagonista a pagina 12?"*).
 - **OBBLIGATORIO porre domande su motivazioni, impliciti e relazioni causa-effetto** (es. *SÌ: "Per quale motivo il protagonista decide di nascondere la verità all'amico? Quali rischi comporta questa scelta?"*).
 
@@ -2030,7 +2222,7 @@ Prima di elaborare qualsiasi scheda didattica, analizza il testo secondo questi 
 - Bilancia equamente affermazioni vere e false (es. 2 Vere e 3 False, oppure 3 Vere e 2 False) e richiedi sempre agli studenti di correggere e motivare quelle false.
 
 ### D. Analisi Psicologica e Scrittura Immedesimativa
-- **Analisi dei Personaggi:** Concentrati sulle contraddizioni, sulle paure nascoste, sul cambiamento del carattere e sui dilemmi etici.
+- **Analisi dei Personaggi (2 domande):** Concentrati sulle contraddizioni, sulle paure nascoste, sul cambiamento del carattere e sui dilemmi etici.
 - **Officina di Scrittura:** Proponi tracce di scrittura creativa in prima persona che allenino l'empatia e il decentramento del punto di vista (es. pagina di diario segreto, lettera mai spedita, monologo interiore prima di una scelta difficile, messaggio di scuse o difesa).
 
 ### E. Selezione Lessicale
@@ -2040,13 +2232,15 @@ Prima di elaborare qualsiasi scheda didattica, analizza il testo secondo questi 
 ---
 
 ## 4. Repertorio delle Attività Speciali "Fuori dagli Schemi" (Rotazione Obbligatoria)
-Per la Sezione 5 di ogni scheda, progetta un'attività laboratoriale sempre diversa tra un blocco e l'altro, scegliendo a rotazione dal seguente catalogo metodologico:
+Per la Sezione 5 di ogni scheda, progetta un'attività laboratoriale sempre diversa tra un blocco e l'altro, scegliendo a rotazione dal seguente catalogo metodologico.
+
+**Regola di rotazione:** assegna le attività a tutti i blocchi fin dal Piano delle Unità Didattiche (Fase 1), così che la rotazione resti coerente anche quando i blocchi vengono generati in risposte successive. Usa tutte le sei tipologie prima di ripeterne una e non assegnare mai la stessa tipologia a due blocchi consecutivi (con più di sei blocchi, ricomincia il ciclo variando il taglio dell'attività).
 
 1. **Mappa Topografica o Tattica:** Ricostruzione grafica dei luoghi dell'azione, del percorso dei personaggi o della pianta di un edificio chiave con legenda degli eventi.
 2. **Processo in Aula / Dibattito (Debate):** Divisione in due collegi (Accusa/Difesa o Pro/Contro) su una scelta controversa compiuta da un personaggio, con raccolta delle prove dal testo.
 3. **Dossier Investigativo / Caccia all'Indizio:** Raccolta e incrocio di indizi, sospettati, moventi o incongruenze disseminati dall'autore nei capitoli.
 4. **Redazione Giornalistica d'Epoca:** Scrittura di un articolo di cronaca, un titolo di prima pagina o un'intervista impossibile ai testimoni dell'evento narrato.
-5. **Taccuino Naturalistico / Storico / Tecnico:** Approfondimento interdisciplinare (scienze, storia, geografia, tecnica) legato a un elemento reale presente nei capitoli, accompagnato da un rilievo grafico.
+5. **Taccuino Naturalistico / Storico / Tecnico:** Approfondimento interdisciplinare (scienze, storia, geografia, tecnica) legato a un elemento reale presente nei capitoli (es. una bussola, una specie animale, un evento storico), accompagnato da un rilievo grafico.
 6. **Codice Segreto, Stemma o Simbologia:** Ideazione di un emblema araldico, decifrazione di un messaggio in codice o rappresentazione visiva di una metafora centrale del blocco.
 
 ---
@@ -2054,12 +2248,16 @@ Per la Sezione 5 di ogni scheda, progetta un'attività laboratoriale sempre dive
 ## 5. Criteri per la Guida Docente e le Chiavi di Correzione
 Nella sezione finale riservata all'insegnante, garantisci sempre:
 - **Inquadramento rapido:** Riassunto denso ed esaustivo degli avvenimenti del blocco, utile al docente per rinfrescare i dettagli prima della lezione in classe.
-- **Risposte Modello complete:** Fornisci la risposta articolata attesa per ciascuna domanda aperta, l'elenco esatto V/F con la correzione completa delle affermazioni false, la stringa di abbinamento del lessico (es. \`1-D, 2-A, 3-E, 4-B, 5-C\`) e i criteri di osservazione per valutare l'attività speciale.\n`;
+- **Risposte Modello complete:** Non limitarti a indicazioni generiche; fornisci la risposta articolata attesa per ciascuna domanda aperta, l'elenco esatto V/F con la correzione completa delle affermazioni false, i criteri di valutazione della produzione scritta, la stringa di abbinamento del lessico (es. \`1-D, 2-A, 3-E, 4-B, 5-C\`) e i criteri di osservazione per valutare l'attività speciale.
+`;
 }
 
 // ============================================================
 // 10. Modulo Esportazione DOCX (Word & Google Documenti)
 // ============================================================
+
+const DOCX_PAGE_BREAK = '<<<PAGE_BREAK>>>';
+const DOCX_TEXT_WIDTH = 9638; // Larghezza utile A4 con margini di 2 cm (in twip)
 
 function xmlEscape(str) {
   if (!str) return "";
@@ -2071,15 +2269,52 @@ function xmlEscape(str) {
     .replace(/'/g, "&apos;");
 }
 
-function parseMarkdownRunsToDocx(text) {
+// Converte le entità HTML usate nei Markdown e uniforma le caselle di abbinamento "[ ]"
+function normalizeDocxText(text) {
+  return String(text || '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/\[(?:\s| )*\]/g, '[    ]');
+}
+
+// Proprietà del run nell'ordine richiesto dallo schema OOXML (rFonts, b, i, color, sz, shd)
+function buildRunProps({ bold = false, italic = false, code = false, color = null, size = null } = {}, opts = {}) {
+  let rPr = '';
+  if (code) rPr += '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>';
+  if (bold) rPr += '<w:b/>';
+  if (italic && !opts.dsa) rPr += '<w:i/>'; // Alta leggibilità: nessun corsivo
+  if (color) rPr += `<w:color w:val="${color}"/>`;
+  if (size) rPr += `<w:sz w:val="${size}"/><w:szCs w:val="${size}"/>`;
+  if (code) rPr += '<w:shd w:val="clear" w:color="auto" w:fill="F1F5F9"/>';
+  return rPr ? `<w:rPr>${rPr}</w:rPr>` : '';
+}
+
+// Proprietà del paragrafo nell'ordine richiesto dallo schema OOXML (keepNext, pBdr, shd, spacing, ind, jc)
+function buildParaProps({ keepNext = false, border = null, shade = null, before = null, after = null, indLeft = null, indRight = null, jc = null } = {}) {
+  let pPr = '';
+  if (keepNext) pPr += '<w:keepNext/>';
+  if (border) pPr += `<w:pBdr>${border}</w:pBdr>`;
+  if (shade) pPr += `<w:shd w:val="clear" w:color="auto" w:fill="${shade}"/>`;
+  if (before !== null || after !== null) {
+    pPr += `<w:spacing${before !== null ? ` w:before="${before}"` : ''}${after !== null ? ` w:after="${after}"` : ''}/>`;
+  }
+  if (indLeft !== null || indRight !== null) {
+    pPr += `<w:ind${indLeft !== null ? ` w:left="${indLeft}"` : ''}${indRight !== null ? ` w:right="${indRight}"` : ''}/>`;
+  }
+  if (jc) pPr += `<w:jc w:val="${jc}"/>`;
+  return pPr ? `<w:pPr>${pPr}</w:pPr>` : '';
+}
+
+function parseMarkdownRunsToDocx(text, base = {}, opts = {}) {
+  const normalized = normalizeDocxText(text);
   let runsXml = "";
   const tokens = [];
   const regex = /(\*\*.*?\*\*|\*.*?\*|`.*?`)/g;
   let lastIndex = 0;
   let match;
-  while ((match = regex.exec(text)) !== null) {
+  while ((match = regex.exec(normalized)) !== null) {
     if (match.index > lastIndex) {
-      tokens.push({ type: 'normal', text: text.substring(lastIndex, match.index) });
+      tokens.push({ type: 'normal', text: normalized.substring(lastIndex, match.index) });
     }
     const full = match[0];
     if (full.startsWith('**') && full.endsWith('**')) {
@@ -2091,148 +2326,145 @@ function parseMarkdownRunsToDocx(text) {
     }
     lastIndex = match.index + full.length;
   }
-  if (lastIndex < text.length) {
-    tokens.push({ type: 'normal', text: text.substring(lastIndex) });
+  if (lastIndex < normalized.length) {
+    tokens.push({ type: 'normal', text: normalized.substring(lastIndex) });
   }
 
   for (const t of tokens) {
     if (!t.text) continue;
-    let rPr = "";
-    if (t.type === 'bold') rPr = "<w:b/>";
-    else if (t.type === 'italic') rPr = "<w:i/>";
-    else if (t.type === 'code') rPr = '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:shd w:val="clear" w:color="auto" w:fill="F1F5F9"/>';
-    runsXml += `<w:r>${rPr ? `<w:rPr>${rPr}</w:rPr>` : ""}<w:t xml:space="preserve">${xmlEscape(t.text)}</w:t></w:r>`;
+    const props = {
+      ...base,
+      bold: base.bold || t.type === 'bold',
+      italic: base.italic || t.type === 'italic',
+      code: t.type === 'code'
+    };
+    runsXml += `<w:r>${buildRunProps(props, opts)}<w:t xml:space="preserve">${xmlEscape(t.text)}</w:t></w:r>`;
   }
   return runsXml;
 }
 
-function markdownToWordXml(md) {
-  const lines = md.split(/\r?\n/);
+// Paragrafo vuoto dopo ogni tabella: evita che Word unisca tabelle consecutive
+const DOCX_SPACER_PARAGRAPH = '<w:p><w:pPr><w:spacing w:before="0" w:after="120"/></w:pPr></w:p>';
+
+// Riquadro a cella singola (intestazione studente, spazio disegno)
+function buildDocxBox(innerParagraphsXml, { fill = 'F8FAFC', borderColor = 'CBD5E1', borderSize = 6, minHeight = null } = {}) {
+  const border = side => `<w:${side} w:val="single" w:sz="${borderSize}" w:space="0" w:color="${borderColor}"/>`;
+  return `<w:tbl>` +
+    `<w:tblPr><w:tblW w:w="${DOCX_TEXT_WIDTH}" w:type="dxa"/><w:tblBorders>${['top', 'left', 'bottom', 'right'].map(border).join('')}</w:tblBorders>` +
+    `<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="120" w:type="dxa"/><w:left w:w="180" w:type="dxa"/><w:bottom w:w="120" w:type="dxa"/><w:right w:w="180" w:type="dxa"/></w:tblCellMar></w:tblPr>` +
+    `<w:tblGrid><w:gridCol w:w="${DOCX_TEXT_WIDTH}"/></w:tblGrid>` +
+    `<w:tr>${minHeight ? `<w:trPr><w:trHeight w:val="${minHeight}" w:hRule="atLeast"/></w:trPr>` : ''}` +
+    `<w:tc><w:tcPr><w:tcW w:w="${DOCX_TEXT_WIDTH}" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="${fill}"/><w:vAlign w:val="center"/></w:tcPr>${innerParagraphsXml}</w:tc>` +
+    `</w:tr></w:tbl>${DOCX_SPACER_PARAGRAPH}`;
+}
+
+// Larghezze delle colonne: Vero/Falso e Abbinamento hanno proporzioni dedicate
+function computeDocxColumnWidths(headerCells) {
+  const n = Math.max(1, headerCells.length);
+  const h = headerCells.map(c => c.replace(/\*/g, '').trim().toLowerCase());
+  if (n === 3 && h[1].includes('abbinamento')) return [3000, 1600, 5038];
+  if (n === 3 && h[1] === 'v' && h[2] === 'f') return [7838, 900, 900];
+  const base = Math.floor(DOCX_TEXT_WIDTH / n);
+  const widths = Array(n).fill(base);
+  widths[n - 1] += DOCX_TEXT_WIDTH - base * n;
+  return widths;
+}
+
+function buildDocxTable(rows, opts = {}) {
+  const colWidths = computeDocxColumnWidths(rows[0]);
+  const border = side => `<w:${side} w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>`;
+  let xml = `<w:tbl>` +
+    `<w:tblPr><w:tblW w:w="${DOCX_TEXT_WIDTH}" w:type="dxa"/><w:tblBorders>${['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map(border).join('')}</w:tblBorders>` +
+    `<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="100" w:type="dxa"/><w:left w:w="140" w:type="dxa"/><w:bottom w:w="100" w:type="dxa"/><w:right w:w="140" w:type="dxa"/></w:tblCellMar></w:tblPr>` +
+    `<w:tblGrid>${colWidths.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>`;
+
+  rows.forEach((cells, rIdx) => {
+    const isHeader = rIdx === 0;
+    xml += `<w:tr>${isHeader ? '<w:trPr><w:tblHeader/></w:trPr>' : ''}`;
+    colWidths.forEach((width, cIdx) => {
+      const cellText = cells[cIdx] || '';
+      const isCheckbox = /^\[(?:\s|&nbsp;| )*\]$/.test(cellText);
+      const runs = parseMarkdownRunsToDocx(cellText, { bold: isHeader }, opts);
+      xml += `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/>${isHeader ? '<w:shd w:val="clear" w:color="auto" w:fill="F1F5F9"/>' : ''}<w:vAlign w:val="center"/></w:tcPr>` +
+        `<w:p>${buildParaProps({ after: 40, jc: (isHeader || isCheckbox) ? 'center' : null })}${runs}</w:p></w:tc>`;
+    });
+    xml += `</w:tr>`;
+  });
+  return xml + `</w:tbl>${DOCX_SPACER_PARAGRAPH}`;
+}
+
+function markdownToWordXml(md, opts = {}) {
+  const lines = String(md || '').replace(/\r\n?/g, '\n').split('\n');
   const elements = [];
+  const headingStyles = {
+    1: { size: 32, color: '1E3A8A', before: 160, after: 100, jc: 'center' },
+    2: { size: 26, color: '1E3A8A', before: 200, after: 80 },
+    3: { size: 23, color: '334155', before: 160, after: 80 },
+    4: { size: 22, color: '475569', before: 120, after: 60 }
+  };
   let i = 0;
 
   while (i < lines.length) {
-    const rawLine = lines[i];
-    const line = rawLine.trim();
+    const line = lines[i].trim();
 
     if (!line) {
       i++;
       continue;
     }
 
-    // Header 1 (# ...)
-    if (line.startsWith('# ')) {
-      elements.push(`<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="160" w:after="100"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="32"/><w:color w:val="1E3A8A"/></w:rPr><w:t>${xmlEscape(line.slice(2).trim())}</w:t></w:r></w:p>`);
+    // Interruzione di pagina tra le unità del fascicolo
+    if (line === DOCX_PAGE_BREAK) {
+      elements.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>');
       i++;
       continue;
     }
 
-    // Header 2 (## ...)
-    if (line.startsWith('## ')) {
-      elements.push(`<w:p><w:pPr><w:spacing w:before="200" w:after="80"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="26"/><w:color w:val="1E3A8A"/></w:rPr><w:t>${xmlEscape(line.slice(3).trim())}</w:t></w:r></w:p>`);
-      i++;
-      continue;
-    }
-
-    // Header 3 (### ...)
-    if (line.startsWith('### ')) {
-      elements.push(`<w:p><w:pPr><w:spacing w:before="160" w:after="80"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="23"/><w:color w:val="334155"/></w:rPr><w:t>${xmlEscape(line.slice(4).trim())}</w:t></w:r></w:p>`);
-      i++;
-      continue;
-    }
-
-    // Header 4 (#### ...)
-    if (line.startsWith('#### ')) {
-      elements.push(`<w:p><w:pPr><w:spacing w:before="120" w:after="60"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="22"/><w:color w:val="475569"/></w:rPr><w:t>${xmlEscape(line.slice(5).trim())}</w:t></w:r></w:p>`);
+    // Titoli (# ... ####), con grassetto/corsivo interni interpretati
+    const headingMatch = line.match(/^(#{1,4})\s+(.+)$/);
+    if (headingMatch) {
+      const style = headingStyles[headingMatch[1].length];
+      elements.push(`<w:p>${buildParaProps({ keepNext: true, before: style.before, after: style.after, jc: style.jc || null })}${parseMarkdownRunsToDocx(headingMatch[2].trim(), { bold: true, size: style.size, color: style.color }, opts)}</w:p>`);
       i++;
       continue;
     }
 
     // Box Intestazione Studente
     if (line.includes('Nome e Cognome') && (line.includes('Classe') || line.includes('Data'))) {
-      elements.push(`
-        <w:tbl>
-          <w:tblPr>
-            <w:tblW w:w="9638" w:type="dxa"/>
-            <w:tblBorders>
-              <w:top w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
-              <w:left w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
-              <w:bottom w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
-              <w:right w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
-            </w:tblBorders>
-            <w:tblCellMar>
-              <w:top w:w="120" w:type="dxa"/>
-              <w:left w:w="180" w:type="dxa"/>
-              <w:bottom w:w="120" w:type="dxa"/>
-              <w:right w:w="180" w:type="dxa"/>
-            </w:tblCellMar>
-          </w:tblPr>
-          <w:tr>
-            <w:tc>
-              <w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="F8FAFC"/></w:tcPr>
-              <w:p><w:pPr><w:spacing w:after="40"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>Nome e Cognome: </w:t></w:r><w:r><w:t>_____________________________________   </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>Classe: </w:t></w:r><w:r><w:t>_________   </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>Data: </w:t></w:r><w:r><w:t>_________</w:t></w:r></w:p>
-            </w:tc>
-          </w:tr>
-        </w:tbl>
-      `);
+      const fields = `<w:p>${buildParaProps({ after: 40 })}` +
+        `<w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Nome e Cognome: </w:t></w:r><w:r><w:t xml:space="preserve">______________________________   </w:t></w:r>` +
+        `<w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Classe: </w:t></w:r><w:r><w:t xml:space="preserve">_________   </w:t></w:r>` +
+        `<w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Data: </w:t></w:r><w:r><w:t>_________</w:t></w:r></w:p>`;
+      elements.push(buildDocxBox(fields));
       i++;
       continue;
     }
 
-    // Citazione (> ...)
+    // Citazione (righe consecutive "> ..." in un unico riquadro)
     if (line.startsWith('>')) {
-      const cleanQuote = line.replace(/^>\s*/, '').replace(/###\s*/, '');
-      elements.push(`
-        <w:p>
-          <w:pPr>
-            <w:ind w:left="400" w:right="400"/>
-            <w:pBdr><w:left w:val="single" w:sz="18" w:space="12" w:color="2563EB"/></w:pBdr>
-            <w:shd w:val="clear" w:color="auto" w:fill="F8FAFC"/>
-            <w:spacing w:before="120" w:after="160"/>
-          </w:pPr>
-          <w:r><w:rPr><w:i/><w:color w:val="475569"/></w:rPr><w:t xml:space="preserve">${xmlEscape(cleanQuote)}</w:t></w:r>
-        </w:p>
-      `);
-      i++;
+      const quoteRuns = [];
+      while (i < lines.length && lines[i].trim().startsWith('>')) {
+        const quoteLine = lines[i].trim().replace(/^>\s*/, '').replace(/^#{1,4}\s*/, '');
+        if (quoteLine) quoteRuns.push(parseMarkdownRunsToDocx(quoteLine, { italic: true, color: '475569' }, opts));
+        i++;
+      }
+      const border = '<w:left w:val="single" w:sz="18" w:space="12" w:color="2563EB"/>';
+      elements.push(`<w:p>${buildParaProps({ border, shade: 'F8FAFC', before: 120, after: 160, indLeft: 400, indRight: 400 })}${quoteRuns.join('<w:r><w:br/></w:r>')}</w:p>`);
       continue;
     }
 
     // Box grafico / disegno
     if (line.includes('[SPAZIO PER') || line.includes('SPAZIO RISERVATO AL DISEGNO') || line.includes('Spazio riservato al disegno')) {
-      elements.push(`
-        <w:tbl>
-          <w:tblPr>
-            <w:tblW w:w="9638" w:type="dxa"/>
-            <w:tblBorders>
-              <w:top w:val="single" w:sz="8" w:space="0" w:color="94A3B8"/>
-              <w:left w:val="single" w:sz="8" w:space="0" w:color="94A3B8"/>
-              <w:bottom w:val="single" w:sz="8" w:space="0" w:color="94A3B8"/>
-              <w:right w:val="single" w:sz="8" w:space="0" w:color="94A3B8"/>
-            </w:tblBorders>
-          </w:tblPr>
-          <w:tr>
-            <w:trPr><w:trHeight w:val="2800" w:hRule="atLeast"/></w:trPr>
-            <w:tc>
-              <w:tcPr>
-                <w:tcW w:w="9638" w:type="dxa"/>
-                <w:shd w:val="clear" w:color="auto" w:fill="F8FAFC"/>
-                <w:vAlign w:val="center"/>
-              </w:tcPr>
-              <w:p>
-                <w:pPr><w:jc w:val="center"/></w:pPr>
-                <w:r><w:rPr><w:color w:val="64748B"/><w:i/></w:rPr><w:t>✏️ Spazio riservato al disegno / rilievo grafico</w:t></w:r>
-              </w:p>
-            </w:tc>
-          </w:tr>
-        </w:tbl>
-      `);
+      const label = `<w:p>${buildParaProps({ jc: 'center' })}<w:r>${buildRunProps({ italic: true, color: '64748B' }, opts)}<w:t>✏️ Spazio riservato al disegno / rilievo grafico</w:t></w:r></w:p>`;
+      elements.push(buildDocxBox(label, { borderColor: '94A3B8', borderSize: 8, minHeight: 2800 }));
       i++;
       continue;
     }
 
     // Righe di scrittura / compilazione manuale
-    if (/^[_\.]{15,}$/.test(line)) {
-      elements.push(`<w:p><w:pPr><w:pBdr><w:bottom w:val="dotted" w:sz="6" w:space="2" w:color="94A3B8"/></w:pBdr><w:spacing w:before="60" w:after="160"/></w:pPr><w:r><w:t></w:t></w:r></w:p>`);
+    if (/^_{5,}$/.test(line) || /^\.{15,}$/.test(line)) {
+      // "between": Word unisce i paragrafi consecutivi con lo stesso bordo, senza di esso si vedrebbe una sola riga
+      const border = '<w:bottom w:val="dotted" w:sz="6" w:space="2" w:color="94A3B8"/><w:between w:val="dotted" w:sz="6" w:space="2" w:color="94A3B8"/>';
+      elements.push(`<w:p>${buildParaProps({ border, before: opts.dsa ? 120 : 60, after: opts.dsa ? 240 : 160 })}</w:p>`);
       i++;
       continue;
     }
@@ -2244,85 +2476,49 @@ function markdownToWordXml(md) {
         tableLines.push(lines[i].trim());
         i++;
       }
-
-      if (tableLines.length >= 2) {
-        const rows = tableLines.filter(tl => !/^[\|\s\-:]+$/.test(tl));
-        let tblXml = `
-          <w:tbl>
-            <w:tblPr>
-              <w:tblW w:w="9638" w:type="dxa"/>
-              <w:tblBorders>
-                <w:top w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
-                <w:left w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
-                <w:bottom w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
-                <w:right w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
-                <w:insideH w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
-                <w:insideV w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
-              </w:tblBorders>
-              <w:tblCellMar>
-                <w:top w:w="100" w:type="dxa"/>
-                <w:left w:w="140" w:type="dxa"/>
-                <w:bottom w:w="100" w:type="dxa"/>
-                <w:right w:w="140" w:type="dxa"/>
-              </w:tblCellMar>
-            </w:tblPr>
-        `;
-
-        rows.forEach((rowStr, rIdx) => {
-          const rawCells = rowStr.replace(/^\|/, '').replace(/\|$/, '').split('|');
-          const isHeader = rIdx === 0;
-          tblXml += `<w:tr>`;
-          rawCells.forEach(cell => {
-            const cellText = cell.trim();
-            const bg = isHeader ? `<w:shd w:val="clear" w:color="auto" w:fill="F1F5F9"/>` : ``;
-            const align = isHeader ? `<w:jc w:val="center"/>` : ``;
-            const contentRuns = isHeader
-              ? `<w:r><w:rPr><w:b/></w:rPr><w:t>${xmlEscape(cellText)}</w:t></w:r>`
-              : parseMarkdownRunsToDocx(cellText);
-
-            tblXml += `
-              <w:tc>
-                <w:tcPr>${bg}<w:vAlign w:val="center"/></w:tcPr>
-                <w:p><w:pPr>${align}<w:spacing w:after="40"/></w:pPr>${contentRuns}</w:p>
-              </w:tc>
-            `;
-          });
-          tblXml += `</w:tr>`;
-        });
-        tblXml += `</w:tbl>`;
-        elements.push(tblXml);
+      const rows = tableLines
+        .filter(tl => !/^[|\s:-]+$/.test(tl))
+        .map(tl => tl.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim()));
+      if (rows.length > 0) {
+        elements.push(buildDocxTable(rows, opts));
       }
       continue;
     }
 
     // Separatore ---
     if (/^-{3,}$/.test(line)) {
-      elements.push(`<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="8" w:color="E2E8F0"/></w:pBdr><w:spacing w:before="120" w:after="160"/></w:pPr><w:r><w:t></w:t></w:r></w:p>`);
+      const border = '<w:bottom w:val="single" w:sz="6" w:space="8" w:color="E2E8F0"/>';
+      elements.push(`<w:p>${buildParaProps({ border, before: 120, after: 160 })}</w:p>`);
       i++;
       continue;
     }
 
     // Elenco puntato (- o *)
-    if (/^[\-\*]\s+/.test(line)) {
-      const itemText = line.replace(/^[\-\*]\s+/, '');
-      elements.push(`<w:p><w:pPr><w:ind w:left="400"/><w:spacing w:after="60"/></w:pPr><w:r><w:t>• </w:t></w:r>${parseMarkdownRunsToDocx(itemText)}</w:p>`);
+    if (/^[-*]\s+/.test(line)) {
+      const itemText = line.replace(/^[-*]\s+/, '');
+      elements.push(`<w:p>${buildParaProps({ after: 60, indLeft: 400 })}<w:r><w:t xml:space="preserve">• </w:t></w:r>${parseMarkdownRunsToDocx(itemText, {}, opts)}</w:p>`);
       i++;
       continue;
     }
 
     // Paragrafo standard
-    elements.push(`<w:p><w:pPr><w:spacing w:after="100"/></w:pPr>${parseMarkdownRunsToDocx(line)}</w:p>`);
+    elements.push(`<w:p>${buildParaProps({ after: 100 })}${parseMarkdownRunsToDocx(line, {}, opts)}</w:p>`);
     i++;
   }
 
   return elements.join('\n');
 }
 
-async function buildDocxZipBlob(bodyXmlElements) {
+async function buildDocxZipBlob(bodyXmlElements, opts = {}) {
   if (typeof JSZip === 'undefined') {
     throw new Error("Libreria JSZip non disponibile.");
   }
   const zip = new JSZip();
+
+  // Alta leggibilità (DSA): font sans-serif maggiorato (12,5 pt) e interlinea ampia
+  const font = opts.dsa ? 'Verdana' : 'Calibri';
+  const fontSize = opts.dsa ? 25 : 22;
+  const lineSpacing = opts.dsa ? 360 : 276;
 
   zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -2355,16 +2551,16 @@ async function buildDocxZipBlob(bodyXmlElements) {
   <w:docDefaults>
     <w:rPrDefault>
       <w:rPr>
-        <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>
-        <w:sz w:val="22"/>
-        <w:szCs w:val="22"/>
+        <w:rFonts w:ascii="${font}" w:hAnsi="${font}" w:cs="${font}"/>
         <w:color w:val="1E293B"/>
+        <w:sz w:val="${fontSize}"/>
+        <w:szCs w:val="${fontSize}"/>
         <w:lang w:val="it-IT"/>
       </w:rPr>
     </w:rPrDefault>
     <w:pPrDefault>
       <w:pPr>
-        <w:spacing w:after="140" w:line="276" w:lineRule="auto"/>
+        <w:spacing w:after="140" w:line="${lineSpacing}" w:lineRule="auto"/>
       </w:pPr>
     </w:pPrDefault>
   </w:docDefaults>
@@ -2396,45 +2592,58 @@ function downloadBlob(blob, filename) {
   a.download = filename;
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  // La revoca immediata può interrompere il download in Firefox/Safari
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 1000);
 }
 
-async function exportStudentDocx() {
+// Markdown della scheda studente di un blocco (solo esercizi selezionati)
+function buildStudentDocxMarkdown(block, headingLevel = 2) {
+  let md = `${'#'.repeat(headingLevel)} *${globalBookTitle}* — ${block.title}\n`;
+  md += `**Nome e Cognome dello studente:** ________________________________________  **Classe:** ____________  **Data:** ____________\n\n`;
+  if (block.welcomeNote) {
+    md += block.welcomeNote.split('\n').map(l => `> ${l}`).join('\n') + '\n\n';
+  }
+  md += joinSelectedExercises(getSelectedExercises(block), 'md');
+  return md;
+}
+
+function docxFileName(base, suffix, opts = {}) {
+  const safeName = String(base || 'Scheda').replace(/[^a-zA-Z0-9_\-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  return `${safeName || 'Scheda'}_${suffix}${opts.dsa ? '_DSA' : ''}.docx`;
+}
+
+async function exportStudentDocx(opts = {}) {
   const block = BLOCKS_DATA.find(b => b.id === currentBlockId);
   if (!block) {
     showNotificationToast("Nessun blocco didattico selezionato.");
     return;
   }
-  const selectedExercises = block.exercises.filter(ex => selectedState[block.id] && selectedState[block.id].has(ex.id));
-  if (selectedExercises.length === 0) {
+  if (getSelectedExercises(block).length === 0) {
     showNotificationToast("Nessun esercizio selezionato da esportare.");
     return;
   }
 
   let md = `# SCHEDA DIDATTICA DI LETTURA E COMPRENSIONE\n`;
-  md += `## *${globalBookTitle}* — ${block.title}\n`;
-  md += `**Nome e Cognome dello studente:** ________________________________________  **Classe:** ____________  **Data:** ____________\n\n`;
-  if (block.welcomeNote) {
-    md += `> ### 🌊 Citazione\n> ${block.welcomeNote}\n\n`;
-  }
-  md += selectedExercises.map(ex => ex.rawMarkdown || '').join('\n\n---\n\n');
+  md += buildStudentDocxMarkdown(block, 2);
   md += `\n\n---\n*Scuola Secondaria di Primo Grado — Scheda di Lavoro Individuale o di Coppia*\n`;
 
   try {
     showNotificationToast("⏳ Generazione file DOCX in corso...");
-    const xml = markdownToWordXml(md);
-    const blob = await buildDocxZipBlob(xml);
-    const safeName = (block.title || 'Scheda_Studenti').replace(/[^a-zA-Z0-9_\-]/g, '_');
-    downloadBlob(blob, `${safeName}_Studenti.docx`);
-    showNotificationToast(`📄 File "${safeName}_Studenti.docx" scaricato! Pronto per Google Drive e Word.`);
+    const xml = markdownToWordXml(md, opts);
+    const blob = await buildDocxZipBlob(xml, opts);
+    const fileName = docxFileName(block.title, 'Studenti', opts);
+    downloadBlob(blob, fileName);
+    showNotificationToast(`📄 File "${fileName}" scaricato! Pronto per Google Drive e Word.`);
   } catch (err) {
     console.error(err);
     showNotificationToast("Errore durante la generazione del file DOCX.");
   }
 }
 
-async function exportTeacherDocx() {
+async function exportTeacherDocx(opts = {}) {
   const block = BLOCKS_DATA.find(b => b.id === currentBlockId);
   if (!block) {
     showNotificationToast("Nessun blocco didattico selezionato.");
@@ -2451,48 +2660,213 @@ async function exportTeacherDocx() {
 
   try {
     showNotificationToast("⏳ Generazione file DOCX in corso...");
-    const xml = markdownToWordXml(md);
-    const blob = await buildDocxZipBlob(xml);
-    const safeName = (block.title || 'Guida_Docente').replace(/[^a-zA-Z0-9_\-]/g, '_');
-    downloadBlob(blob, `${safeName}_Guida_Docente.docx`);
-    showNotificationToast(`📄 File "${safeName}_Guida_Docente.docx" scaricato! Pronto per Google Drive e Word.`);
+    const xml = markdownToWordXml(md, opts);
+    const blob = await buildDocxZipBlob(xml, opts);
+    const fileName = docxFileName(block.title, 'Guida_Docente', opts);
+    downloadBlob(blob, fileName);
+    showNotificationToast(`📄 File "${fileName}" scaricato! Pronto per Google Drive e Word.`);
   } catch (err) {
     console.error(err);
     showNotificationToast("Errore durante la generazione del file DOCX.");
   }
 }
 
-async function exportFullBookDocx() {
+async function exportFullBookDocx(opts = {}) {
   if (!BLOCKS_DATA || BLOCKS_DATA.length === 0) {
     showNotificationToast("Nessun blocco didattico caricato.");
+    return;
+  }
+  const blocksWithSelection = BLOCKS_DATA.filter(block => getSelectedExercises(block).length > 0);
+  if (blocksWithSelection.length === 0) {
+    showNotificationToast("Nessun esercizio selezionato in nessuna unità.");
     return;
   }
 
   let md = `# FASCICOLO DIDATTICO COMPLETO\n`;
   md += `## *${globalBookTitle}*\n\n`;
 
-  BLOCKS_DATA.forEach((block, idx) => {
-    const selectedExercises = block.exercises.filter(ex => selectedState[block.id] && selectedState[block.id].has(ex.id));
-    if (selectedExercises.length === 0) return;
-
-    if (idx > 0) md += `\n\n---\n\n`;
-    md += `# ${block.title}\n`;
-    md += `**Nome e Cognome dello studente:** ________________________________________  **Classe:** ____________  **Data:** ____________\n\n`;
-    if (block.welcomeNote) {
-      md += `> ### 🌊 Citazione\n> ${block.welcomeNote}\n\n`;
-    }
-    md += selectedExercises.map(ex => ex.rawMarkdown || '').join('\n\n---\n\n');
+  // Ogni unità didattica inizia su una nuova pagina
+  blocksWithSelection.forEach(block => {
+    md += `\n\n${DOCX_PAGE_BREAK}\n\n`;
+    md += buildStudentDocxMarkdown(block, 1);
   });
 
   try {
     showNotificationToast("⏳ Generazione fascicolo completo DOCX...");
-    const xml = markdownToWordXml(md);
-    const blob = await buildDocxZipBlob(xml);
-    const safeName = (globalBookTitle || 'Fascicolo_Didattico').replace(/[^a-zA-Z0-9_\-]/g, '_');
-    downloadBlob(blob, `${safeName}_Fascicolo_Completo_Studenti.docx`);
-    showNotificationToast(`📄 File "${safeName}_Fascicolo_Completo_Studenti.docx" scaricato!`);
+    const xml = markdownToWordXml(md, opts);
+    const blob = await buildDocxZipBlob(xml, opts);
+    const fileName = docxFileName(globalBookTitle || 'Fascicolo_Didattico', 'Fascicolo_Completo_Studenti', opts);
+    downloadBlob(blob, fileName);
+    showNotificationToast(`📄 File "${fileName}" scaricato!`);
   } catch (err) {
     console.error(err);
     showNotificationToast("Errore durante la generazione del fascicolo DOCX.");
   }
+}
+
+// ============================================================
+// 11. Modulo Importazione Risposta AI
+// ============================================================
+
+function openAiImportModal() {
+  const modal = document.getElementById('ai-import-modal');
+  if (!modal) return;
+  modal.classList.add('open');
+  const textarea = document.getElementById('ai-import-textarea');
+  if (textarea) setTimeout(() => textarea.focus(), 50);
+}
+
+function closeAiImportModal() {
+  const modal = document.getElementById('ai-import-modal');
+  if (modal) modal.classList.remove('open');
+}
+
+function sanitizeImportedFilename(name) {
+  let clean = String(name || '')
+    .replace(/\\_/g, '_')           // underscore "escapati" dal Markdown dell'AI
+    .replace(/[`*]/g, '')
+    .trim()
+    .replace(/^.*[\\/]/, '')
+    .replace(/[^\w.\-]/g, '_');
+  if (!clean || clean === '.md') return '';
+  if (!/\.md$/i.test(clean)) clean += '.md';
+  return clean;
+}
+
+function nextFreeBlockNumber() {
+  const numbers = BLOCKS_DATA.map(b => b.blockNumber || 0);
+  return (numbers.length ? Math.max(...numbers) : 0) + 1;
+}
+
+// Divide il testo incollato nei singoli file:
+// 1) marcatori "[[FILE: nome.md]]" ... "[[FINE]]" richiesti dal prompt;
+// 2) in assenza di marcatori, i titoli "# Dati del Libro" e "# SCHEDA DIDATTICA ..."
+function splitAiResponse(text) {
+  const clean = String(text || '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/^[ \t]*```[a-zA-Z]*[ \t]*$/gm, '');
+  const files = [];
+
+  const boundaryRegex = /^[ \t]*\\?\[\\?\[\s*(FILE\s*:\s*([^\]\n]+?)|FINE)\s*\\?\]\\?\][ \t]*$/gim;
+  const boundaries = [...clean.matchAll(boundaryRegex)];
+  if (boundaries.some(b => b[2])) {
+    boundaries.forEach((b, idx) => {
+      if (!b[2]) return; // [[FINE]] chiude soltanto il file precedente
+      const start = b.index + b[0].length;
+      const end = idx + 1 < boundaries.length ? boundaries[idx + 1].index : clean.length;
+      const filename = sanitizeImportedFilename(b[2]);
+      const body = clean.slice(start, end).trim();
+      if (filename && body) files.push({ filename, markdown: body + '\n' });
+    });
+    return files;
+  }
+
+  const headRegex = /^#\s+(?:Dati\s+del\s+Libro|SCHEDA\s+DIDATTICA)[^\n]*$/gim;
+  const heads = [...clean.matchAll(headRegex)];
+  let nextBlock = nextFreeBlockNumber();
+  heads.forEach((head, idx) => {
+    const end = idx + 1 < heads.length ? heads[idx + 1].index : clean.length;
+    const body = clean.slice(head.index, end).trim();
+    if (/^#\s+Dati\s+del\s+Libro/i.test(head[0])) {
+      files.push({ filename: 'dati_libro.md', markdown: body + '\n' });
+    } else {
+      const numMatch = body.match(/^###\s+(?:Unità\s+Didattica|[^\n]*Blocco)\s+([0-9]+)/mi);
+      const blockNumber = numMatch ? parseInt(numMatch[1], 10) : nextBlock++;
+      files.push({ filename: `blocco_${String(blockNumber).padStart(2, '0')}_esercizi.md`, markdown: body + '\n' });
+    }
+  });
+  return files;
+}
+
+function importAiResponse() {
+  const textarea = document.getElementById('ai-import-textarea');
+  if (!textarea) return;
+  const files = splitAiResponse(textarea.value);
+  if (files.length === 0) {
+    alert("Nessun file riconosciuto.\n\nVerifica che il testo contenga i marcatori [[FILE: nome.md]] oppure i titoli \"# Dati del Libro\" / \"# SCHEDA DIDATTICA\".");
+    return;
+  }
+
+  const overwritten = files.filter(f => RAW_FILES_CACHE.has(f.filename)).map(f => f.filename);
+  if (overwritten.length > 0 && !confirm(`I seguenti file esistono già e verranno sovrascritti:\n\n${overwritten.join('\n')}\n\nContinuare?`)) {
+    return;
+  }
+
+  let focusFilename = null;
+  files.forEach(f => {
+    RAW_FILES_CACHE.set(f.filename, f.markdown);
+    if (!ORIGINAL_FILES_CACHE.has(f.filename)) {
+      ORIGINAL_FILES_CACHE.set(f.filename, f.markdown);
+    }
+    if (!isDatiLibro(f.filename)) focusFilename = f.filename;
+  });
+
+  rebuildBlocksFromCache(focusFilename);
+  saveBookToStorage(true);
+  textarea.value = '';
+  closeAiImportModal();
+  showNotificationToast(`📥 Importati ${files.length} file: ${files.map(f => f.filename).join(', ')}`);
+}
+
+// ============================================================
+// 12. Guida Rapida di Avvio (procedura in 4 passi con NotebookLM ed esempio)
+// ============================================================
+
+const NEXT_BLOCK_COMMAND = 'Procedi con il Blocco successivo';
+
+// Il libro e contesto_didattico.md sono fonti del taccuino NotebookLM; in chat si incolla solo il prompt
+function copyStartInstructions() {
+  copyTextToClipboard(promptRawCache || getFallbackPromptText(), '📋 Istruzioni copiate! Incollale nella chat del taccuino NotebookLM e invia.', 'prompt.md');
+}
+
+function downloadStartContext() {
+  downloadMarkdownFile('contesto_didattico.md', contextRawCache || getFallbackContextText());
+  showNotificationToast('⬇️ Linee guida scaricate: aggiungi il file "contesto_didattico.md" come fonte del taccuino.');
+}
+
+function copyNextBlockCommand() {
+  copyTextToClipboard(NEXT_BLOCK_COMMAND, `📋 Copiato «${NEXT_BLOCK_COMMAND}»: incollalo nella chat del taccuino e invia.`, 'comando.txt');
+}
+
+function openStartGuide() {
+  const guide = document.getElementById('dropzone-banner');
+  if (!guide) return;
+  guide.style.display = 'block';
+  const closeBtn = document.getElementById('start-guide-close');
+  if (closeBtn) closeBtn.style.display = BLOCKS_DATA.length > 0 ? '' : 'none';
+  guide.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function hideStartGuide() {
+  if (BLOCKS_DATA.length === 0) return; // senza schede la guida è la schermata iniziale
+  const guide = document.getElementById('dropzone-banner');
+  if (guide) guide.style.display = 'none';
+}
+
+// Carica le schede dimostrative (Pinocchio, capitoli I-VII) da esempio/esempio_pinocchio.js:
+// un file script funziona anche aprendo l'app direttamente dal disco (file://)
+function loadExampleBook() {
+  if (RAW_FILES_CACHE.size > 0 && !confirm("L'esempio sostituisce le schede aperte in questo momento.\n\nOK = carica l'esempio\nAnnulla = mantieni le schede attuali")) {
+    return;
+  }
+
+  const apply = () => {
+    if (!Array.isArray(window.ESEMPIO_LIBRO) || window.ESEMPIO_LIBRO.length === 0) {
+      showNotificationToast("Impossibile caricare l'esempio.");
+      return;
+    }
+    loadRawWorksheets(window.ESEMPIO_LIBRO.map(item => ({ ...item })));
+    saveBookToStorage(false);
+    showNotificationToast("✨ Esempio caricato: esplora le schede, l'anteprima e la guida docente. Il pulsante «?» riapre la guida.");
+  };
+
+  if (window.ESEMPIO_LIBRO) {
+    apply();
+    return;
+  }
+  const script = document.createElement('script');
+  script.src = 'esempio/esempio_pinocchio.js';
+  script.onload = apply;
+  script.onerror = () => showNotificationToast("Impossibile caricare l'esempio.");
+  document.head.appendChild(script);
 }
