@@ -9,7 +9,7 @@ Il sistema consente di analizzare qualsiasi opera letteraria o romanzo per ragaz
 
 ## 🗂️ Struttura del Progetto
 
-Il repository si presenta come template universale e pronto all'uso, completamente client-side e privo di dipendenze esterne o runtime di backend:
+Il repository si presenta come template universale e pronto all'uso, completamente client-side e privo di runtime di backend:
 
 ```text
 AnalisiLibro/
@@ -21,20 +21,26 @@ AnalisiLibro/
 ├── SECURITY.md                   # Politica di sicurezza del repository
 ├── index.html                    # Applicazione web interattiva per selezione, editing, DOCX e stampa PDF
 ├── style.css                     # Foglio di stile CSS (layout responsive, modalità DSA, stampa A4)
-├── app.js                        # Controller JS (parser Markdown, editor live, generatore OOXML DOCX)
-├── jszip.min.js                  # Libreria client-side per impacchettamento OpenXML DOCX e .zip (v3.10.1, zero dipendenze npm)
+├── app.js                        # Controller JS (parser Markdown, editor live, generatore OOXML DOCX, salvataggi)
+├── jszip.min.js                  # Libreria client-side per DOCX e file di lavoro .zip (v3.10.1, zero dipendenze npm)
 ├── fonts/                        # Font self-hosted (Plus Jakarta Sans, Source Serif 4) con licenze SIL OFL
 ├── contesto_didattico.md         # Metodologia pedagogica, calibrazione quesiti e catalogo attività per l'AI
 ├── prompt.md                     # Comando operativo progressivo e template Markdown per il parser web
-├── README.md                     # Manuale operativo e documentazione del progetto
-└── schede_esercizi/              # (Opzionale) Cartella per il caricamento automatico delle schede
+├── GUIDA_DOCENTI.md              # Guida d'uso e domande frequenti per i docenti (mostrata dal pulsante "?")
+├── README.md                     # Manuale tecnico e documentazione del progetto
+├── schede/                       # Schede pronte: file di lavoro .zip elencati in «📚 I miei libri»
+│   └── LEGGIMI.md                # Come pubblicare un nuovo libro nella cartella
+└── schede_esercizi/              # (Opzionale) Cartella per il caricamento automatico all'avvio
     ├── manifest.json             # Elenco JSON dei file presenti (es. ["dati_libro.md", "blocco_01_esercizi.md"])
     ├── dati_libro.md             # Scheda anagrafica e metadati del romanzo
     └── blocco_01_esercizi.md     # Schede didattiche dei singoli blocchi narrativi
 ```
 
 > [!NOTE]
-> Se pubblichi il sito su GitHub Pages o Netlify con una cartella `schede_esercizi/`, puoi includere un file `schede_esercizi/manifest.json` contenente l'array dei file (es. `["dati_libro.md", "blocco_01_esercizi.md", "blocco_02_esercizi.md"]`, oppure `{"files": [...]}`) per il caricamento istantaneo all'avvio. Il pulsante **`📦 Scarica Tutti (.zip)`** dell'editor genera la cartella `schede_esercizi/` completa di `manifest.json`, pronta da pubblicare. In assenza di `manifest.json`, l'app rileva automaticamente i file sequenziali `dati_libro.md`, `blocco_01_esercizi.md`, `blocco_02_esercizi.md` (fino a 30 blocchi), interrompendo la ricerca al primo blocco non presente.
+> **Schede pronte (`schede/`):** ogni file `.zip` creato con **`💾 Salva lavoro`** e caricato nella cartella `schede/` compare in **`📚 I miei libri → Schede pronte`** e si apre con un clic. Su GitHub Pages l'elenco viene letto dall'API pubblica di GitHub (nessun file indice da aggiornare); su altri hosting si usa un file `schede/elenco.json` con i nomi degli zip. Istruzioni in [`schede/LEGGIMI.md`](schede/LEGGIMI.md).
+
+> [!NOTE]
+> **Caricamento automatico (`schede_esercizi/`):** se il sito contiene una cartella `schede_esercizi/`, l'app la carica all'avvio. Il file `schede_esercizi/manifest.json` (array dei file, es. `["dati_libro.md", "blocco_01_esercizi.md"]`, oppure `{"files": [...]}`) rende il caricamento istantaneo; in sua assenza l'app cerca i file sequenziali `dati_libro.md`, `blocco_01_esercizi.md`, `blocco_02_esercizi.md` (fino a 30 blocchi), fermandosi al primo blocco mancante. Il file di lavoro di **`💾 Salva lavoro`** contiene già la cartella `schede_esercizi/` con `manifest.json`.
 
 ---
 
@@ -46,8 +52,8 @@ L'intero workflow è progettato per essere eseguito **senza installare alcun sof
 flowchart TD
     A["1. Carica il libro (EPUB/PDF/TXT) + contesto_didattico.md come fonti di un taccuino NotebookLM"] --> B["2. Incolla nella chat del taccuino il prompt operativo da prompt.md"]
     B --> C["3. L'AI genera Fase 1 (dati_libro.md + Mappatura) e il Blocco 1, poi procede blocco per blocco"]
-    C --> D["4. Apri l'app web (index.html) e incolla la risposta con 📥 Importa AI (oppure carica la cartella dei file .md)"]
-    D --> E["5. Personalizza gli esercizi (anche per BES/DSA) e stampa il PDF A4 (Studenti, Fascicolo o Docente)"]
+    C --> D["4. Apri l'app web e incolla ogni risposta con 📥 Incolla risposta AI"]
+    D --> E["5. Scegli gli esercizi (anche per BES/DSA), salva il lavoro e usa 🖨️ Stampa o scarica"]
 ```
 
 ---
@@ -55,7 +61,7 @@ flowchart TD
 ## 🤖 1. Generazione delle Schede con l'AI (NotebookLM)
 
 > [!TIP]
-> All'apertura l'app mostra una **guida rapida in 4 passi** (riapribile in ogni momento con il pulsante **`?`**) con i link e i pulsanti per ciascun passaggio, e permette di caricare un **esempio completo** (*Le avventure di Pinocchio*, capitoli I-VII) per vedere il risultato prima di iniziare.
+> All'apertura l'app mostra una **guida rapida in 4 passi** (riapribile in ogni momento con il pulsante **`?`**) con i link e i pulsanti per ciascun passaggio. Dalla guida si possono anche aprire le **schede pronte** pubblicate nella cartella `schede/`.
 
 Il sistema separa nettamente la **metodologia pedagogica** (`contesto_didattico.md`, caricata come fonte di conoscenza) dal **comando esecutivo e sintattico** (`prompt.md`, inviato nella chat):
 
@@ -64,14 +70,14 @@ Il sistema separa nettamente la **metodologia pedagogica** (`contesto_didattico.
    - Il file del romanzo da analizzare in formato **EPUB**, **PDF**, **Doc** o **TXT**.
    - Il file [`contesto_didattico.md`](contesto_didattico.md) (trascinalo come file o incollalo come fonte).
 3. **Copia e Invia il Prompt:**
-   - Apri [`prompt.md`](prompt.md) (oppure clicca sul pulsante **`🤖 Prompt & Contesto`** direttamente nell'applicazione web e premi **`📋 Copia Prompt per AI`**).
-   - Incolla il prompt nella chat dell'AI.
+   - Apri [`prompt.md`](prompt.md) (oppure, nell'app, usa il passo 3 della guida rapida o **`🤖 Istruzioni per l'AI`** → **`📋 Copia il testo`**).
+   - Incolla il prompt nella chat del taccuino.
 4. **Generazione Progressiva (Anti-Troncamento):**
    - **Primo passo:** L'AI genera la scheda anagrafica del libro (`dati_libro.md`) con il Piano delle Unità Didattiche (capitoli, nucleo tematico e attività speciale assegnata a ogni blocco) e la scheda integrale del **Blocco 1**, fermandosi al termine.
    - **Passi successivi:** Invia il comando *"Procedi con il Blocco successivo"* per far generare all'AI ciascun blocco seguente uno alla volta con il massimo livello di approfondimento, evitando tagli dovuti ai limiti di lunghezza dell'output.
 5. **Importazione nell'app:**
    - Ogni file prodotto dall'AI è delimitato dalle righe `[[FILE: nome.md]]` e `[[FINE]]`.
-   - Copia la risposta dalla chat del taccuino, poi nell'app premi **`📥 Importa AI`** e incollala: i file `dati_libro.md` e `blocco_XX_esercizi.md` vengono separati, nominati e caricati automaticamente. Ripeti per ogni nuovo blocco.
+   - Copia la risposta dalla chat del taccuino, poi nell'app premi **`📥 Incolla risposta AI`** e incollala: i file `dati_libro.md` e `blocco_XX_esercizi.md` vengono separati, nominati e caricati automaticamente. Ripeti per ogni nuovo blocco.
    - Se i marcatori mancano, l'importazione divide il testo sui titoli `# Dati del Libro` e `# SCHEDA DIDATTICA`.
 
 ### 📐 Struttura Pedagogica di Ciascuna Scheda
@@ -96,42 +102,48 @@ Ciascuna unità didattica generata rispetta una precisa architettura pedagogica 
 
 ## 💻 2. Visualizzazione, Editing, Inclusione (DSA/BES) e Stampa Web (`index.html`)
 
-L'applicazione web [`index.html`](index.html) è **100% client-side** (funziona sia aprendo il file localmente nel browser, sia pubblicata su Netlify, Vercel o GitHub Pages).
+L'applicazione web [`index.html`](index.html) è **100% client-side** (funziona sia aprendo il file localmente nel browser, sia pubblicata su Netlify, Vercel o GitHub Pages). L'header contiene solo sei comandi: **`📥 Incolla risposta AI`**, **`📚 I miei libri`**, **`💾 Salva lavoro`**, **`🖨️ Stampa o scarica`**, **`🤖 Istruzioni per l'AI`** e **`?`** (guida rapida).
 
 ### Caratteristiche Principali:
 1. **Caricamento Flessibile:**
-   - **Importazione della risposta AI:** **`📥 Importa AI`** separa automaticamente i file delimitati da `[[FILE: nome.md]]` / `[[FINE]]` e li aggiunge a quelli già caricati (i file con lo stesso nome vengono sovrascritti dopo conferma).
-   - **Da Cartella o singoli file:** **`📁 Carica Cartella Schede`**, **`📄 Scegli singoli file .md`** oppure trascinamento della cartella nella pagina. Se la selezione contiene file `blocco_XX…`, vengono caricati solo questi e `dati_libro.md`; in ogni caso sono ignorati `README.md`, `prompt.md`, `contesto_didattico.md` e i nomi duplicati.
-   - **Automatico all'avvio:** Se distribuita online con una cartella `schede_esercizi/`, l'app la rileva e carica automaticamente all'avvio. Se nel browser ci sono modifiche locali (editor o importazione AI) non pubblicate, l'app chiede se ripristinarle invece di sovrascriverle; in quel caso *Ripristina Iniziale* riporta alla versione del sito.
-   - **Creazione da zero:** Puoi avviare l'editor integrato anche senza file preesistenti cliccando su **`✏️ Crea da zero nell'Editor`**.
+   - **Incolla risposta AI:** **`📥 Incolla risposta AI`** separa automaticamente i file delimitati da `[[FILE: nome.md]]` / `[[FINE]]` e li aggiunge a quelli già caricati (le schede con lo stesso nome vengono sostituite dopo conferma).
+   - **I miei libri:** apre un libro salvato nel browser, una **scheda pronta** della cartella `schede/`, un file di lavoro `.zip`, singole schede `.md` o una cartella; file e cartelle si possono anche trascinare nella pagina. Se la selezione contiene file `blocco_XX…`, vengono caricati solo questi e `dati_libro.md`; in ogni caso sono ignorati `README.md`, `prompt.md`, `contesto_didattico.md` e i nomi duplicati.
+   - **Automatico all'avvio:** se il sito contiene la cartella `schede_esercizi/`, l'app la carica all'avvio. Se nel browser ci sono modifiche locali non pubblicate, l'app chiede con due pulsanti espliciti quale versione usare invece di sovrascriverle.
+   - **Creazione da zero:** **`✏️ Scrivi una scheda da zero`** apre l'editor con il modello standard.
    - Il titolo del libro viene letto da `dati_libro.md` o, in sua assenza, dal sottotitolo `## *Titolo* di Autore` delle schede.
 
-2. **Didattica Inclusiva (BES e Alta Leggibilità DSA):**
+2. **Non perdere il lavoro:**
+   - **Salvataggio automatico nel browser** a ogni modifica, con lo stato mostrato sotto il titolo («Salvato in questo browser oggi alle 10:32» e un avviso se le ultime modifiche non sono ancora state salvate in un file).
+   - **`💾 Salva lavoro`** scarica un unico file `.zip` per libro (cartella `schede_esercizi/` con `manifest.json` e, se presenti, le versioni salvate in `versioni.json`), da riaprire con **`📚 I miei libri`** o trascinandolo nella pagina.
+   - **`📚 I miei libri`** conserva più libri nel browser (IndexedDB): si passa da un libro all'altro senza perdere nulla e si eliminano quelli non più necessari.
+
+3. **Didattica Inclusiva (BES e Alta Leggibilità DSA):**
    - **`🎯 Selezione Essenziale (BES)`:** Pulsante rapido nella barra di selezione che attiva automaticamente le sole sezioni di *Comprensione (domande aperte)*, *Vero/Falso* e *Laboratorio Lessicale* per verifiche o schede a carico cognitivo ridotto. Ogni esercizio resta poi selezionabile o deselezionabile singolarmente.
-   - **`🔤 Alta Leggibilità (DSA)`:** Commutatore disponibile nell'anteprima di stampa che trasforma l'impaginazione secondo i criteri di alta leggibilità (font sans-serif `Plus Jakarta Sans` maggiorato a `12.5pt`, rimozione totale del corsivo, interlinea e spaziatura espanse, righe di scrittura più alte per alunni con disgrafia). Il pulsante **`📄 Esporta DOCX`** dell'anteprima applica la stessa impostazione al file Word (Verdana 12,5 pt, senza corsivi, interlinea 1,5); i pulsanti DOCX dell'header producono sempre la versione standard.
+   - **`📌 Versioni salvate`:** le scelte degli esercizi di tutti i blocchi si salvano con un nome (es. «2B completa», «Versione BES») e si richiamano dal menu *Versione*; sono incluse nel file di **`💾 Salva lavoro`**.
+   - **`🔤 Alta Leggibilità (DSA)`:** casella della finestra **`🖨️ Stampa o scarica`** (e pulsante nell'anteprima) che trasforma l'impaginazione secondo i criteri di alta leggibilità (font sans-serif `Plus Jakarta Sans` maggiorato a `12.5pt`, rimozione totale del corsivo, interlinea e spaziatura espanse, righe di scrittura più alte per alunni con disgrafia). Vale sia per stampa/PDF sia per Word (Verdana 12,5 pt, senza corsivi, interlinea 1,5) e viene ricordata tra una sessione e l'altra.
 
-3. **Editor Markdown Integrato & Live Preview (`✏️ Modifica Markdown di questa unità`):**
-   - Modifica istantaneamente qualsiasi scheda o creane di nuove direttamente dall'interfaccia.
-   - Live preview affiancata con rendering tipografico A4 in tempo reale e conteggio fedele delle righe di risposta.
-   - Barra di formattazione rapida per inserire tabelle Vero/Falso (complete di righe di correzione), abbinamenti lessicali `[  ]`, righe di scrittura e box di disegno.
-   - Salvataggio in memoria (`localStorage`), salvataggio diretto su disco (*File System Access API*), download singolo (`⬇️ Scarica File .md`) o esportazione di tutti i file in un archivio (`📦 Scarica Tutti (.zip)`, con `manifest.json`).
-   - Le selezioni degli esercizi vengono conservate quando si applicano modifiche; gli esercizi nuovi risultano selezionati.
+4. **Editor con anteprima (`✏️ Modifica il testo di questa scheda`):**
+   - Modifica qualsiasi scheda o creane di nuove (**`➕ Nuova scheda…`**, indicando solo il numero del blocco).
+   - Anteprima affiancata con rendering tipografico A4 in tempo reale e conteggio fedele delle righe di risposta.
+   - Barra di formattazione rapida per inserire titoli, tabelle Vero/Falso, abbinamenti lessicali `[  ]`, righe di scrittura e box di disegno.
+   - **`✅ Salva modifiche`** (Ctrl+S), **`⬇️ Scarica questa scheda`** e **`↩️ Annulla tutte le modifiche`**; chiudendo o cambiando scheda con modifiche in sospeso l'app chiede se salvarle.
+   - Le selezioni degli esercizi vengono conservate quando si salvano modifiche; gli esercizi nuovi risultano selezionati.
 
-4. **Modalità Studenti & Fascicolo Completo (Stampa PDF A4 & DOCX):**
-   - **`👁️ Anteprima` / `🖨️ Stampa PDF`:** Visualizza e stampa la scheda del blocco corrente in formato A4 **escludendo rigorosamente le soluzioni e la guida docente**.
-   - **`📚 Fascicolo Completo`:** Impagina in un unico documento multipagina tutte le unità didattiche con almeno un esercizio selezionato, ciascuna su una nuova pagina.
-   - **`📄 DOCX`:** Genera istantaneamente il file `.docx` del blocco corrente; per l'intera opera usa **`📄 Esporta DOCX`** nell'anteprima del Fascicolo Completo.
-
-5. **Modalità Docente:**
-   - Nel riquadro verde **`DOCENTE:`**, i pulsanti **`👁️ Anteprima`**, **`📘 Stampa Guida`** e **`📄 DOCX`** generano il fascicolo riservato all'insegnante completo di sinossi narrativa, griglie e chiavi di correzione.
+5. **Stampa o scarica (`🖨️ Stampa o scarica`):** un'unica finestra con tre scelte e un riepilogo di ciò che verrà prodotto:
+   - **Che cosa:** l'unità corrente oppure tutto il libro (ogni unità su una nuova pagina; le unità senza esercizi scelti o senza guida vengono saltate).
+   - **Per chi:** studenti (solo esercizi scelti, **mai soluzioni o guida docente**) oppure docente (sinossi e chiavi di correzione).
+   - **Formato:** stampa/PDF A4, con il suggerimento di scegliere «Salva come PDF» e disattivare intestazioni e piè di pagina, oppure Word / Google Documenti (`.docx`).
+   - **`👁️ Anteprima`** mostra il documento prima di stamparlo o scaricarlo.
 
 6. **Esportazione DOCX Nativa (Microsoft Word & Google Documenti):**
    - **100% Client-Side:** I file `.docx` (standard Microsoft Word OpenXML) vengono generati direttamente nel browser tramite [`jszip.min.js`](jszip.min.js) senza transitare su server esterni e a costo zero.
    - **Editing su Google Drive:** Basta scaricare il file `.docx`, trascinarlo sul proprio **Google Drive** e aprirlo con **Google Documenti** per editarlo, personalizzarlo, assegnarlo su **Google Classroom** o condividerlo con colleghi.
-   - **Formattazione Preservata:** Tabelle Vero/Falso e di abbinamento diventano tabelle Word con colonne proporzionate, le righe di scrittura diventano paragrafi con bordo tratteggiato e gli spazi per il disegno diventano riquadri: tutto resta liberamente modificabile. Le caselle `[ ]` restano caratteri di testo. Nel fascicolo ogni unità inizia su una nuova pagina.
+   - **Formattazione Preservata:** Tabelle Vero/Falso e di abbinamento diventano tabelle Word con colonne proporzionate, le righe di scrittura diventano paragrafi con bordo tratteggiato e gli spazi per il disegno diventano riquadri: tutto resta liberamente modificabile. Le caselle `[ ]` restano caratteri di testo.
 
-7. **Visualizzatore Prompt & Contesto Integrato:**
-   - Il pulsante **`🤖 Prompt & Contesto`** nell'header consente di consultare, copiare negli appunti o scaricare in qualsiasi momento sia `prompt.md` sia `contesto_didattico.md`.
+7. **Istruzioni per l'AI e aiuto:**
+   - **`🤖 Istruzioni per l'AI`** consente di consultare, copiare o scaricare le istruzioni (`prompt.md`) e le linee guida didattiche (`contesto_didattico.md`).
+   - Il pulsante **`?`** riapre la guida rapida; da lì **`📖 Guida e domande frequenti`** mostra [`GUIDA_DOCENTI.md`](GUIDA_DOCENTI.md) (con il manuale tecnico in una seconda scheda).
+   - Le conferme usano finestre dell'app con pulsanti che dicono esattamente cosa succede (es. «Salva ed esci» / «Esci senza salvare»); avvisi ed errori importanti restano visibili finché non vengono chiusi.
 
 ---
 
@@ -143,7 +155,8 @@ In linea con gli standard di sicurezza e qualità adottati in tutti i progetti:
 - **Protezione da Leak ([.gitignore](.gitignore)):** Esclusione automatica di credenziali, file d'ambiente (`.env`, `*.env`), configurazioni di editor (`.vscode/`, `.idea/`) e file editoriali protetti da copyright (`*.epub`, `*.pdf`).
 - **Code Ownership ([.github/CODEOWNERS](.github/CODEOWNERS)):** Assegnazione della revisione e titolarità del codice a `@aalborghetti`.
 - **Monitoraggio Automatico ([.github/dependabot.yml](.github/dependabot.yml)):** Controllo periodico automatizzato delle versioni delle GitHub Actions. La libreria `jszip.min.js` (v3.10.1) è inclusa direttamente nel repository e non è coperta da Dependabot: va aggiornata manualmente.
-- **Nessuna risorsa esterna:** I font sono ospitati nella cartella `fonts/` (licenza SIL OFL), quindi aprendo l'app non viene contattato alcun server di terze parti (nessun trasferimento dell'indirizzo IP a Google Fonts, rilevante per il GDPR in ambito scolastico).
+- **Nessuna risorsa esterna all'avvio:** I font sono ospitati nella cartella `fonts/` (licenza SIL OFL), quindi aprendo l'app non viene contattato alcun server di terze parti (nessun trasferimento dell'indirizzo IP a Google Fonts, rilevante per il GDPR in ambito scolastico). L'unica richiesta esterna è all'API pubblica di GitHub (`api.github.com`), solo quando si apre **`📚 I miei libri`** sul sito GitHub Pages, per elencare le schede pronte della cartella `schede/`.
+- **Dati nel browser:** libri, versioni e preferenze restano nel browser del docente (localStorage e IndexedDB) e non vengono inviati a nessun server.
 - **Sanitizzazione dei contenuti:** L'HTML generato dai file Markdown (anche se prodotti da un'AI o ricevuti da terzi) viene ripulito da script, gestori di eventi e link `javascript:` prima di essere mostrato.
 
 ---

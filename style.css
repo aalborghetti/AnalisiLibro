@@ -1708,7 +1708,8 @@ body.is-printing .modal-body {
   #editor-modal,
   #help-modal,
   #prompt-context-modal,
-  #ai-import-modal {
+  #ai-import-modal,
+  .modal-overlay:not(#preview-modal) {
     display: none !important;
     height: 0 !important;
     max-height: 0 !important;
@@ -1938,5 +1939,380 @@ body.is-printing .modal-body {
     page-break-inside: auto !important;
     break-inside: auto !important;
     width: 100% !important;
+  }
+}
+
+/* ============================================================
+   HEADER SEMPLIFICATO, STAMPA O SCARICA, VERSIONI, I MIEI LIBRI,
+   FINESTRA DI DIALOGO E AVVISI
+   ============================================================ */
+
+.header-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.header-btn {
+  padding: 0.5rem 0.85rem;
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
+
+.save-status {
+  margin-top: 0.15rem;
+  font-size: 0.74rem !important;
+  color: #15803d !important;
+}
+
+.save-status.warn {
+  color: #b45309 !important;
+}
+
+.btn-danger {
+  background-color: #dc2626;
+  color: #ffffff;
+}
+
+.btn-danger:hover {
+  background-color: #b91c1c;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Finestre compatte (Stampa o scarica, I miei libri) */
+.modal-window.compact-window {
+  max-width: 720px;
+  height: auto;
+  max-height: 90vh;
+}
+
+.export-body,
+.library-body {
+  padding: 1.5rem 1.75rem !important;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.choice-group {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.choice-group legend {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.5rem;
+}
+
+.choice-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.6rem;
+}
+
+.choice-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  padding: 0.75rem 0.9rem;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  background: #ffffff;
+  font-family: inherit;
+  font-size: 0.92rem;
+  color: #1e293b;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.choice-btn small,
+.choice-check small {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.choice-btn:hover {
+  border-color: #93c5fd;
+}
+
+.choice-btn.active {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.choice-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-page);
+  cursor: pointer;
+}
+
+.choice-check input {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-top: 0.15rem;
+  accent-color: var(--primary);
+}
+
+.choice-check span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.92rem;
+}
+
+.export-summary {
+  padding: 0.7rem 0.9rem;
+  border-radius: 8px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.export-summary.warning {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.print-hint {
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.modal-footer .print-hint {
+  flex: 1;
+  min-width: 220px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Barra delle versioni salvate (sotto la selezione degli esercizi) */
+.selection-toolbar {
+  flex-wrap: wrap;
+  row-gap: 0.6rem;
+}
+
+.versions-bar {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--border);
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.version-select {
+  min-width: 200px;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  font-family: inherit;
+  font-size: 0.84rem;
+}
+
+/* I miei libri */
+.library-section h4 {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.3rem;
+}
+
+.library-note {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin-bottom: 0.6rem;
+}
+
+.library-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.library-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.library-item.current {
+  border-color: #93c5fd;
+  background: var(--primary-light);
+}
+
+.library-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.library-item-info strong {
+  font-size: 0.9rem;
+  color: #0f172a;
+}
+
+.library-item-info span {
+  font-size: 0.78rem;
+  color: #64748b;
+  overflow-wrap: anywhere;
+}
+
+.library-item-actions,
+.library-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.library-empty {
+  font-size: 0.85rem;
+  color: #64748b;
+  padding: 0.6rem 0.85rem;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+
+.tech-details {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.tech-details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* Finestra di dialogo dell'app */
+#dialog-modal {
+  z-index: 200;
+}
+
+.modal-window.dialog-window {
+  max-width: 480px;
+  height: auto;
+  padding: 1.5rem;
+  gap: 1.25rem;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+.dialog-content h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.5rem;
+}
+
+.dialog-content p {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: #334155;
+  white-space: pre-line;
+}
+
+.dialog-input {
+  width: 100%;
+  margin-top: 0.85rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.92rem;
+}
+
+.dialog-input:focus {
+  outline: 2px solid #93c5fd;
+  border-color: #2563eb;
+}
+
+.dialog-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Avvisi: quelli persistenti restano finché non vengono chiusi */
+.app-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  max-width: min(460px, calc(100vw - 2rem));
+  line-height: 1.45;
+}
+
+.app-toast.persistent {
+  pointer-events: auto;
+}
+
+.app-toast.warning {
+  background: #78350f;
+}
+
+.app-toast.error {
+  background: #7f1d1d;
+}
+
+.app-toast-close {
+  display: none;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  opacity: 0.8;
+  padding: 0 0.1rem;
+}
+
+.app-toast.persistent .app-toast-close {
+  display: inline-block;
+}
+
+@media (max-width: 600px) {
+  .app-toast {
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+    max-width: none;
+  }
+
+  .library-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .export-body,
+  .library-body {
+    padding: 1.1rem !important;
   }
 }

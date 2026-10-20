@@ -21,56 +21,27 @@
       <div class="brand-text">
         <h1 id="app-book-title">Generatore Schede Didattiche & PDF</h1>
         <p id="app-book-subtitle">Segui i 4 passaggi per creare le schede del tuo libro</p>
+        <p id="app-save-status" class="save-status"></p>
       </div>
     </div>
     <div class="header-actions">
-      <!-- Gruppo Caricamento Cartella / File -->
-      <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
-        <input type="file" id="folder-input" webkitdirectory directory multiple style="display: none;" onchange="handleFolderSelect(this.files)">
-        <input type="file" id="files-input" multiple accept=".md" style="display: none;" onchange="handleFolderSelect(this.files)">
-        <button class="btn btn-primary" style="background-color: #2563eb;" onclick="document.getElementById('folder-input').click()" title="Seleziona la cartella schede_esercizi/">
-          📁 Carica Cartella Schede
-        </button>
-        <button class="btn btn-secondary" style="padding: 0.42rem 0.8rem; font-size: 0.82rem; white-space: nowrap;" onclick="openAiImportModal()" title="Incolla la risposta dell'AI: i file dati_libro.md e blocco_XX_esercizi.md vengono separati automaticamente">
-          📥 Importa AI
-        </button>
-      </div>
+      <input type="file" id="folder-input" webkitdirectory directory multiple style="display: none;" onchange="handleFolderSelect(this.files); this.value = '';">
+      <input type="file" id="files-input" multiple accept=".zip,.md" style="display: none;" onchange="handleFolderSelect(this.files); this.value = '';">
 
-      <!-- Gruppo Scheda Studenti -->
-      <div style="display: flex; align-items: center; gap: 0.4rem; background: #f1f5f9; padding: 0.3rem 0.6rem; border-radius: 10px; border: 1px solid var(--border);">
-        <span style="font-size: 0.76rem; font-weight: 700; color: #475569; padding-right: 0.2rem;">STUDENTI:</span>
-        <button class="btn btn-secondary" style="padding: 0.42rem 0.8rem; font-size: 0.82rem;" onclick="openPrintPreview()" title="Anteprima di stampa del blocco attivo">
-          👁️ Anteprima
-        </button>
-        <button class="btn btn-primary" style="padding: 0.42rem 0.8rem; font-size: 0.82rem;" onclick="printStudentSheet()" title="Stampa o salva in PDF il blocco attivo">
-          🖨️ Stampa PDF
-        </button>
-        <button class="btn btn-secondary" style="padding: 0.42rem 0.8rem; font-size: 0.82rem;" onclick="exportStudentDocx()" title="Esporta scheda studenti in formato Word / Google Documenti (.docx)">
-          📄 DOCX
-        </button>
-        <button class="btn btn-secondary" style="padding: 0.42rem 0.8rem; font-size: 0.82rem;" onclick="openFullBookPreview()" title="Anteprima e stampa di tutte le unità didattiche in un unico fascicolo">
-          📚 Fascicolo Completo
-        </button>
-      </div>
-
-      <!-- Gruppo Guida Docente -->
-      <div style="display: flex; align-items: center; gap: 0.4rem; background: #f0fdf4; padding: 0.3rem 0.6rem; border-radius: 10px; border: 1px solid #bbf7d0;">
-        <span style="font-size: 0.76rem; font-weight: 700; color: #166534; padding-right: 0.2rem;">DOCENTE:</span>
-        <button class="btn btn-secondary" style="padding: 0.42rem 0.8rem; font-size: 0.82rem;" onclick="openTeacherPreview()">
-          👁️ Anteprima
-        </button>
-        <button class="btn btn-accent" style="padding: 0.42rem 0.8rem; font-size: 0.82rem;" onclick="printTeacherGuide()">
-          📘 Stampa Guida
-        </button>
-        <button class="btn btn-secondary" style="padding: 0.42rem 0.8rem; font-size: 0.82rem; background: #ffffff;" onclick="exportTeacherDocx()" title="Esporta guida docente in formato Word / Google Documenti (.docx)">
-          📄 DOCX
-        </button>
-      </div>
-
-      <!-- Gruppo Prompt & Contesto -->
-      <button class="btn btn-secondary" onclick="openPromptContextModal()" style="padding: 0.42rem 0.8rem; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 0.4rem; background: #ffffff; border-color: #cbd5e1;" title="Visualizza e scarica i file Prompt e Contesto Didattico">
-        <span>🤖</span>
-        <span>Prompt &amp; Contesto</span>
+      <button class="btn btn-secondary header-btn" onclick="openAiImportModal()" title="Incolla la risposta di NotebookLM: le schede vengono riconosciute e aggiunte automaticamente">
+        📥 Incolla risposta AI
+      </button>
+      <button class="btn btn-secondary header-btn" onclick="openLibraryModal()" title="Apri un libro salvato nel browser, un file di lavoro (.zip) o una cartella di schede">
+        📚 I miei libri
+      </button>
+      <button class="btn btn-secondary header-btn" onclick="saveWorkFile()" title="Scarica tutto il lavoro di questo libro in un unico file da conservare (.zip)">
+        💾 Salva lavoro
+      </button>
+      <button class="btn btn-primary header-btn" onclick="openExportDialog()" title="Stampa, salva in PDF o scarica in Word le schede per gli studenti o la guida per il docente">
+        🖨️ Stampa o scarica
+      </button>
+      <button class="btn btn-secondary header-btn" onclick="openPromptContextModal()" title="Visualizza, copia o scarica le istruzioni e le linee guida per l'AI">
+        🤖 Istruzioni per l'AI
       </button>
 
       <!-- Pulsante Guida rapida (?) -->
@@ -87,7 +58,7 @@
     <aside class="sidebar">
       <div class="sidebar-card">
         <div class="sidebar-header">
-          <h2>Blocchi Disponibili</h2>
+          <h2>Blocchi del libro</h2>
           <span id="blocks-count-badge" style="font-size: 0.8rem; color: var(--text-muted);">0 Unità</span>
         </div>
         <div class="blocks-list" id="blocks-list">
@@ -144,17 +115,16 @@
 
         <div class="start-guide-footer">
           <div class="start-guide-option">
-            <span>Vuoi prima vedere un risultato?</span>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="loadExampleBook()">✨ Prova con un esempio (Pinocchio)</button>
+            <span>Esistono già schede pronte per il tuo libro?</span>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="openLibraryModal('repository')">📦 Scegli tra le schede pronte</button>
           </div>
           <div class="start-guide-option">
-            <span>Hai già le schede salvate? Trascinale in questa pagina oppure</span>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('folder-input').click()">📁 Apri una cartella</button>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('files-input').click()">📄 Apri singoli file</button>
+            <span>Hai già salvato il lavoro? Trascina il file in questa pagina oppure</span>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="openLibraryModal()">📚 Apri i miei libri</button>
             <button type="button" class="btn btn-secondary btn-sm" onclick="openMdEditor()">✏️ Scrivi una scheda da zero</button>
           </div>
           <div class="start-guide-option">
-            <button type="button" class="btn btn-secondary btn-sm" onclick="openHelpModal()">📖 Manuale completo</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="openHelpModal('guida')">📖 Guida e domande frequenti</button>
           </div>
         </div>
       </section>
@@ -171,7 +141,7 @@
           </p>
           <div style="margin-top: 0.85rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
             <button class="btn btn-secondary" style="font-size: 0.82rem; padding: 0.4rem 0.8rem; background: #ffffff; border-color: #cbd5e1; display: inline-flex; align-items: center; gap: 0.4rem;" onclick="openMdEditor(currentBlockId)">
-              ✏️ Modifica Markdown di questa unità
+              ✏️ Modifica il testo di questa scheda
             </button>
           </div>
         </div>
@@ -180,7 +150,7 @@
       <!-- Selection Controls Toolbar -->
       <section class="selection-toolbar" id="selection-toolbar" style="display: none;">
         <div class="toolbar-left">
-          <span>Esercizi Selezionati per questo blocco:</span>
+          <span>Esercizi da includere nella scheda:</span>
           <span id="selected-badge" style="background: #e0f2fe; color: #0369a1; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.8rem;">
             0 selezionati
           </span>
@@ -195,6 +165,16 @@
           <button class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.35rem 0.75rem;" onclick="deselectAll()">
             Deseleziona Tutti
           </button>
+        </div>
+
+        <!-- Versioni salvate: combinazioni di esercizi per classe o per alunno, valide per tutti i blocchi -->
+        <div class="versions-bar">
+          <label for="version-select">📌 Versione:</label>
+          <select id="version-select" class="version-select" onchange="applySelectionVersion(this.value)">
+            <option value="">— nessuna versione salvata —</option>
+          </select>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="saveSelectionVersion()" title="Salva con un nome gli esercizi scelti in tutti i blocchi (es. «2B completa», «Versione BES»)">💾 Salva le scelte come versione</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-delete-version" onclick="deleteSelectionVersion()" title="Elimina la versione selezionata" style="display: none;">🗑️ Elimina versione</button>
         </div>
       </section>
 
@@ -222,10 +202,11 @@
         <!-- Rendered printable content -->
       </div>
       <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-        <button class="btn btn-secondary" onclick="closePrintPreview()">Torna alla Selezione</button>
+        <button class="btn btn-secondary" onclick="closePrintPreview()">← Torna indietro</button>
+        <span class="print-hint">💡 Per il PDF scegli «Salva come PDF» come stampante e disattiva «Intestazioni e piè di pagina».</span>
         <div style="display: flex; gap: 0.5rem; align-items: center;">
-          <button class="btn btn-secondary" onclick="exportCurrentPreviewDocx()" title="Esporta l'anteprima corrente in formato Word / Google Documenti (.docx)">📄 Esporta DOCX</button>
-          <button class="btn btn-primary" onclick="window.print()">🖨️ Stampa / Salva in PDF</button>
+          <button class="btn btn-secondary" onclick="exportOutputDocx(currentOutput)" title="Scarica questo documento in formato Word / Google Documenti (.docx)">📄 Scarica Word</button>
+          <button class="btn btn-primary" onclick="window.print()">🖨️ Stampa / Salva PDF</button>
         </div>
       </div>
     </div>
@@ -239,11 +220,11 @@
       <div class="modal-header editor-header">
         <div class="editor-header-left">
           <div class="modal-title" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-            <span>✏️ Editor Markdown</span>
-            <span id="editor-dirty-badge" class="dirty-badge" style="display: none;">● Modificato non salvato</span>
+            <span>✏️ Modifica il testo delle schede</span>
+            <span id="editor-dirty-badge" class="dirty-badge" style="display: none;">● Modifiche non salvate</span>
           </div>
           <div class="editor-file-picker">
-            <label for="editor-file-select" style="font-size: 0.8rem; font-weight: 600; color: #475569;">File:</label>
+            <label for="editor-file-select" style="font-size: 0.8rem; font-weight: 600; color: #475569;">Scheda:</label>
             <select id="editor-file-select" class="editor-select" onchange="handleEditorFileSelectChange(this.value)">
               <!-- Populated dynamically -->
             </select>
@@ -253,8 +234,8 @@
         <div class="editor-header-right">
           <!-- View switcher tabs -->
           <div class="editor-view-switcher">
-            <button type="button" class="view-btn active" id="btn-view-editor" onclick="setEditorViewMode('editor')">📝 Editor</button>
-            <button type="button" class="view-btn" id="btn-view-split" onclick="setEditorViewMode('split')">🌗 Divisa</button>
+            <button type="button" class="view-btn active" id="btn-view-editor" onclick="setEditorViewMode('editor')">📝 Testo</button>
+            <button type="button" class="view-btn" id="btn-view-split" onclick="setEditorViewMode('split')">🌗 Affiancati</button>
             <button type="button" class="view-btn" id="btn-view-preview" onclick="setEditorViewMode('preview')">👁️ Anteprima</button>
           </div>
           <button class="btn btn-secondary" onclick="closeMdEditor()">✕ Chiudi</button>
@@ -266,8 +247,8 @@
         <div class="quickbar-group">
           <button type="button" class="quick-btn" onclick="insertEditorSnippet('bold')" title="Grassetto (**testo**)"><strong>B</strong></button>
           <button type="button" class="quick-btn" onclick="insertEditorSnippet('italic')" title="Corsivo (*testo*)"><em>I</em></button>
-          <button type="button" class="quick-btn" onclick="insertEditorSnippet('h2')" title="Titolo Sezione (##)">H2</button>
-          <button type="button" class="quick-btn" onclick="insertEditorSnippet('h3')" title="Sottotitolo (###)">H3</button>
+          <button type="button" class="quick-btn" onclick="insertEditorSnippet('h2')" title="Titolo di sezione (##)">Titolo</button>
+          <button type="button" class="quick-btn" onclick="insertEditorSnippet('h3')" title="Sottotitolo (###)">Sottotitolo</button>
           <button type="button" class="quick-btn" onclick="insertEditorSnippet('quote')" title="Citazione (&gt; Citazione)">&ldquo;&rdquo;</button>
         </div>
         <div class="quickbar-divider"></div>
@@ -284,7 +265,7 @@
       <div class="modal-body editor-body" id="editor-body">
         <!-- Editor Pane -->
         <div class="editor-pane" id="editor-pane">
-          <textarea id="editor-textarea" spellcheck="false" placeholder="Scrivi o modifica qui il codice Markdown..." oninput="handleEditorInput()"></textarea>
+          <textarea id="editor-textarea" spellcheck="false" placeholder="Scrivi o modifica qui il testo della scheda..." oninput="handleEditorInput()"></textarea>
         </div>
 
         <!-- Live Preview Pane -->
@@ -298,24 +279,18 @@
       <!-- Editor Footer -->
       <div class="modal-footer editor-footer">
         <div class="editor-footer-left">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="revertEditorCurrentFile()" title="Ripristina il contenuto iniziale del file">
-            ↩️ Ripristina Iniziale
+          <button type="button" class="btn btn-secondary btn-sm" onclick="revertEditorCurrentFile()" title="Riporta questa scheda com'era quando è stata caricata">
+            ↩️ Annulla tutte le modifiche
           </button>
           <span id="editor-stats" class="editor-stats">0 caratteri</span>
         </div>
 
         <div class="editor-footer-right">
-          <button type="button" class="btn btn-secondary" onclick="downloadAllMarkdownFiles()" title="Scarica tutti i file .md in un archivio .zip (cartella schede_esercizi/ con manifest.json)">
-            📦 Scarica Tutti (.zip)
+          <button type="button" class="btn btn-secondary" onclick="downloadCurrentEditorFile()" title="Scarica solo questa scheda come file di testo (.md)">
+            ⬇️ Scarica questa scheda
           </button>
-          <button type="button" class="btn btn-secondary" onclick="downloadCurrentEditorFile()" title="Scarica il file .md corrente">
-            ⬇️ Scarica File .md
-          </button>
-          <button type="button" class="btn btn-secondary" id="btn-save-picker" onclick="saveDirectToFileSystem()" title="Salva o sovrascrivi direttamente su disco">
-            💾 Salva su Disco
-          </button>
-          <button type="button" class="btn btn-primary" onclick="applyEditorChanges()" title="Applica subito le modifiche all'applicazione e all'anteprima (Ctrl+S)">
-            ✅ Applica Modifiche
+          <button type="button" class="btn btn-primary" onclick="applyEditorChanges()" title="Salva le modifiche nell'app e aggiorna l'anteprima (Ctrl+S)">
+            ✅ Salva modifiche
           </button>
         </div>
       </div>
@@ -329,13 +304,17 @@
       <div class="modal-header">
         <div class="modal-title" style="display: flex; align-items: center; gap: 0.5rem;">
           <span style="font-size: 1.2rem;">📖</span>
-          <span>Guida & Istruzioni di Utilizzo</span>
+          <span>Guida e domande frequenti</span>
+        </div>
+        <div class="editor-view-switcher" style="background: #e2e8f0;">
+          <button type="button" class="view-btn active" id="btn-help-guida" onclick="openHelpModal('guida')">👩‍🏫 Guida per docenti</button>
+          <button type="button" class="view-btn" id="btn-help-readme" onclick="openHelpModal('readme')">🛠️ Manuale tecnico</button>
         </div>
         <button class="btn btn-secondary" onclick="closeHelpModal()">✕ Chiudi</button>
       </div>
       <div class="modal-body help-body" id="help-content">
         <div style="text-align: center; padding: 3rem; color: #64748b;">
-          Caricamento istruzioni dal file README.md in corso...
+          Caricamento della guida in corso...
         </div>
       </div>
       <div class="modal-footer">
@@ -350,16 +329,16 @@
       <div class="modal-header" style="flex-wrap: wrap; gap: 0.75rem;">
         <div class="modal-title" style="display: flex; align-items: center; gap: 0.5rem;">
           <span style="font-size: 1.2rem;">🤖</span>
-          <span>File di Configurazione &amp; AI</span>
+          <span>Istruzioni per l'AI</span>
         </div>
 
         <!-- File Switcher Tabs -->
         <div class="editor-view-switcher" style="background: #e2e8f0;">
-          <button type="button" class="view-btn active" id="btn-tab-prompt" onclick="switchPromptContextTab('prompt')">
-            🚀 prompt.md
+          <button type="button" class="view-btn active" id="btn-tab-prompt" onclick="switchPromptContextTab('prompt')" title="prompt.md">
+            🚀 Istruzioni da incollare
           </button>
-          <button type="button" class="view-btn" id="btn-tab-context" onclick="switchPromptContextTab('context')">
-            🎓 contesto_didattico.md
+          <button type="button" class="view-btn" id="btn-tab-context" onclick="switchPromptContextTab('context')" title="contesto_didattico.md">
+            🎓 Linee guida didattiche
           </button>
         </div>
 
@@ -369,14 +348,14 @@
       <!-- Action subbar -->
       <div style="background: #f8fafc; border-bottom: 1px solid var(--border); padding: 0.6rem 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
         <span id="prompt-context-subtitle" style="font-size: 0.85rem; color: #475569; font-weight: 500;">
-          Prompt chiavi in mano da fornire all'Agente AI per avviare l'elaborazione autonoma del libro.
+          Il testo da copiare e incollare nella chat del taccuino NotebookLM per far preparare le schede.
         </span>
         <div style="display: flex; gap: 0.5rem; align-items: center;">
-          <button type="button" class="btn btn-primary btn-sm" onclick="copyCurrentPromptContextText()" title="Copia il prompt da incollare nell'AI">
-            📋 Copia Prompt per AI
+          <button type="button" class="btn btn-primary btn-sm" onclick="copyCurrentPromptContextText()" title="Copia questo testo negli appunti">
+            📋 Copia il testo
           </button>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="downloadCurrentPromptContextFile()" title="Scarica questo file .md sul tuo computer">
-            ⬇️ Scarica File .md
+          <button type="button" class="btn btn-secondary btn-sm" onclick="downloadCurrentPromptContextFile()" title="Scarica questo testo come file (.md) sul tuo computer">
+            ⬇️ Scarica il file
           </button>
         </div>
       </div>
@@ -388,8 +367,8 @@
 
       <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
         <div style="display: flex; gap: 0.5rem; align-items: center;">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="downloadBothPromptAndContext()" title="Scarica sia prompt.md che contesto_didattico.md">
-            📦 Scarica Entrambi i File
+          <button type="button" class="btn btn-secondary btn-sm" onclick="downloadBothPromptAndContext()" title="Scarica sia le istruzioni (prompt.md) sia le linee guida (contesto_didattico.md)">
+            📦 Scarica entrambi
           </button>
         </div>
         <div style="display: flex; gap: 0.5rem; align-items: center;">
@@ -405,22 +384,131 @@
       <div class="modal-header">
         <div class="modal-title" style="display: flex; align-items: center; gap: 0.5rem;">
           <span style="font-size: 1.2rem;">📥</span>
-          <span>Importa la risposta dell'AI</span>
+          <span>Incolla la risposta dell'AI</span>
         </div>
         <button class="btn btn-secondary" onclick="closeAiImportModal()">✕ Chiudi</button>
       </div>
       <div class="modal-body help-body" style="display: flex; flex-direction: column; gap: 0.75rem;">
-        <p style="font-size: 0.88rem; color: #475569; line-height: 1.55;">
-          Incolla qui una o più risposte dell'AI così come sono. I file vengono separati tramite i marcatori
-          <code>[[FILE: nome.md]]</code> richiesti dal prompt; in loro assenza, il testo viene diviso sui titoli
-          <code># Dati del Libro</code> e <code># SCHEDA DIDATTICA</code>. I file con lo stesso nome vengono sovrascritti.
+        <p style="font-size: 0.9rem; color: #475569; line-height: 1.55;">
+          Incolla qui la risposta di NotebookLM così com'è, anche con il testo prima e dopo le schede: i dati del libro e le schede
+          dei blocchi vengono riconosciuti e aggiunti automaticamente. Puoi incollare anche più risposte insieme.
         </p>
+        <details class="tech-details">
+          <summary>Dettagli tecnici</summary>
+          I file vengono separati dalle righe <code>[[FILE: nome.md]]</code> e <code>[[FINE]]</code> richieste dalle istruzioni;
+          in loro assenza, il testo viene diviso sui titoli <code># Dati del Libro</code> e <code># SCHEDA DIDATTICA</code>.
+          Una scheda già presente con lo stesso nome viene sostituita, dopo conferma.
+        </details>
         <textarea id="ai-import-textarea" spellcheck="false" placeholder="[[FILE: dati_libro.md]]&#10;# Dati del Libro&#10;...&#10;&#10;[[FILE: blocco_01_esercizi.md]]&#10;# SCHEDA DIDATTICA DI LETTURA E COMPRENSIONE&#10;..." style="width: 100%; min-height: 320px; flex: 1; font-family: monospace; font-size: 0.85rem; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; resize: vertical;"></textarea>
       </div>
       <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
         <button type="button" class="btn btn-secondary" onclick="closeAiImportModal()">Annulla</button>
-        <button type="button" class="btn btn-primary" onclick="importAiResponse()">📥 Importa</button>
+        <button type="button" class="btn btn-primary" onclick="importAiResponse()">📥 Aggiungi le schede</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal "Stampa o scarica": cosa, per chi, formato, alta leggibilità -->
+  <div class="modal-overlay" id="export-modal">
+    <div class="modal-window compact-window" role="dialog" aria-modal="true" aria-labelledby="export-modal-title">
+      <div class="modal-header">
+        <div class="modal-title" id="export-modal-title">🖨️ Stampa o scarica</div>
+        <button class="btn btn-secondary" onclick="closeExportDialog()">✕ Chiudi</button>
+      </div>
+      <div class="modal-body help-body export-body">
+        <fieldset class="choice-group">
+          <legend>1. Che cosa?</legend>
+          <div class="choice-options" role="radiogroup">
+            <button type="button" class="choice-btn" role="radio" data-key="scope" data-value="block" onclick="setExportChoice('scope', 'block')">
+              <strong>Questa unità</strong><small id="export-desc-block"></small>
+            </button>
+            <button type="button" class="choice-btn" role="radio" data-key="scope" data-value="book" onclick="setExportChoice('scope', 'book')">
+              <strong>Tutto il libro</strong><small id="export-desc-book"></small>
+            </button>
+          </div>
+        </fieldset>
+
+        <fieldset class="choice-group">
+          <legend>2. Per chi?</legend>
+          <div class="choice-options" role="radiogroup">
+            <button type="button" class="choice-btn" role="radio" data-key="audience" data-value="student" onclick="setExportChoice('audience', 'student')">
+              <strong>👩‍🎓 Studenti</strong><small>Solo gli esercizi scelti, senza soluzioni</small>
+            </button>
+            <button type="button" class="choice-btn" role="radio" data-key="audience" data-value="teacher" onclick="setExportChoice('audience', 'teacher')">
+              <strong>👩‍🏫 Docente</strong><small>Riassunto dei capitoli e soluzioni</small>
+            </button>
+          </div>
+        </fieldset>
+
+        <fieldset class="choice-group">
+          <legend>3. In che formato?</legend>
+          <div class="choice-options" role="radiogroup">
+            <button type="button" class="choice-btn" role="radio" data-key="format" data-value="pdf" onclick="setExportChoice('format', 'pdf')">
+              <strong>🖨️ Stampa o PDF</strong><small>Da stampare o da salvare come PDF</small>
+            </button>
+            <button type="button" class="choice-btn" role="radio" data-key="format" data-value="word" onclick="setExportChoice('format', 'word')">
+              <strong>📄 Word / Google Documenti</strong><small>File modificabile (.docx)</small>
+            </button>
+          </div>
+        </fieldset>
+
+        <label class="choice-check">
+          <input type="checkbox" id="export-dsa" onchange="setDsaMode(this.checked)">
+          <span><strong>🔤 Alta leggibilità (DSA)</strong><small>Carattere più grande, niente corsivo, righe di scrittura più ampie</small></span>
+        </label>
+
+        <p class="export-summary" id="export-summary" aria-live="polite"></p>
+        <p class="print-hint" id="export-print-hint">💡 Nella finestra di stampa scegli «Salva come PDF» come stampante per ottenere il PDF, e disattiva «Intestazioni e piè di pagina».</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeExportDialog()">Annulla</button>
+        <button type="button" class="btn btn-secondary" id="export-preview-btn" onclick="runExport('preview')">👁️ Anteprima</button>
+        <button type="button" class="btn btn-primary" id="export-go-btn" onclick="runExport('go')">🖨️ Stampa / Salva PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal "I miei libri": libri salvati nel browser, schede pronte del repository, apertura di file -->
+  <div class="modal-overlay" id="library-modal">
+    <div class="modal-window compact-window" role="dialog" aria-modal="true" aria-labelledby="library-modal-title">
+      <div class="modal-header">
+        <div class="modal-title" id="library-modal-title">📚 I miei libri</div>
+        <button class="btn btn-secondary" onclick="closeLibraryModal()">✕ Chiudi</button>
+      </div>
+      <div class="modal-body help-body library-body">
+        <section class="library-section">
+          <h4>Salvati in questo browser</h4>
+          <p class="library-note">Ogni libro su cui lavori viene salvato automaticamente qui. Il salvataggio resta solo su questo computer e in questo browser: per conservarlo o spostarlo usa «💾 Salva lavoro».</p>
+          <div id="library-list" class="library-list"></div>
+        </section>
+
+        <section class="library-section" id="library-repository-section">
+          <h4>📦 Schede pronte</h4>
+          <p class="library-note">File di lavoro (.zip) pubblicati nella cartella <code>schede/</code> del sito.</p>
+          <div id="repository-list" class="library-list"></div>
+        </section>
+
+        <section class="library-section">
+          <h4>Apri dal computer</h4>
+          <p class="library-note">Un file di lavoro salvato con «💾 Salva lavoro» (.zip), singole schede (.md) o una cartella di schede. Puoi anche trascinarli nella pagina.</p>
+          <div class="library-actions">
+            <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('files-input').click()">📂 Apri un file di lavoro o delle schede</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('folder-input').click()">📁 Apri una cartella</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- Finestra di dialogo dell'app (sostituisce alert/confirm/prompt del browser) -->
+  <div class="modal-overlay" id="dialog-modal">
+    <div class="modal-window dialog-window" role="alertdialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-message">
+      <div class="dialog-content">
+        <h3 id="dialog-title"></h3>
+        <p id="dialog-message"></p>
+        <input type="text" id="dialog-input" class="dialog-input" style="display: none;">
+      </div>
+      <div class="dialog-buttons" id="dialog-buttons"></div>
     </div>
   </div>
 

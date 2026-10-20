@@ -404,6 +404,7 @@ function loadRawWorksheets(worksheetsArray, originalsArray = null) {
   Object.keys(selectedState).forEach(key => delete selectedState[key]);
   BLOCKS_DATA = [];
   currentBlockId = null;
+  activeVersionName = '';
 
   (worksheetsArray || []).forEach(item => {
     RAW_FILES_CACHE.set(item.filename, item.markdown);
@@ -454,6 +455,7 @@ function rebuildBlocksFromCache(focusFilename = null) {
   if (BLOCKS_DATA.length === 0) {
     currentBlockId = null;
     showEmptyState();
+    renderSaveStatus();
     return;
   }
 
@@ -470,15 +472,18 @@ function rebuildBlocksFromCache(focusFilename = null) {
   if (grid) grid.style.display = 'flex';
 
   document.getElementById('app-book-title').textContent = globalBookTitle;
-  document.getElementById('app-book-subtitle').textContent = `Caricate ${BLOCKS_DATA.length} unità didattiche (${worksheets.length} file elaborati)`;
+  document.getElementById('app-book-subtitle').textContent = `${BLOCKS_DATA.length} unità didattiche`;
   document.getElementById('blocks-count-badge').textContent = `${BLOCKS_DATA.length} Unità`;
 
   renderSidebar();
   renderActiveBlock();
+  renderVersionsBar();
+  renderSaveStatus();
 }
 
-// Salva l'insieme di file nel browser; "locallyEdited" indica modifiche non presenti sul sito
-function saveBookToStorage(locallyEdited) {
+// Salva l'insieme di file nel browser (ultimo libro + archivio «I miei libri");
+// "locallyEdited" indica modifiche non presenti sul sito, "fromFile" che il contenuto coincide con un file
+function saveBookToStorage(locallyEdited, { fromFile = false } = {}) {
   try {
     localStorage.setItem(BOOK_STORAGE_KEY, JSON.stringify(getAllRawWorksheets()));
     if (locallyEdited) {
@@ -488,7 +493,13 @@ function saveBookToStorage(locallyEdited) {
     }
   } catch (err) {
     console.warn("Storage quota superata o disattivata", err);
+    showNotificationToast("⚠️ Il browser non ha più spazio per salvare le schede: usa «💾 Salva lavoro» per non perdere le modifiche.", { type: 'warning', persistent: true });
   }
+  saveInfo.savedAt = Date.now();
+  if (fromFile) saveInfo.fileSavedAt = saveInfo.savedAt;
+  writeSaveInfo();
+  libraryPutCurrentBook(locallyEdited);
+  renderSaveStatus();
 }
 
 function readBookFromStorage() {
@@ -522,19 +533,42 @@ function showEmptyState() {
   if (closeBtn) closeBtn.style.display = 'none';
 }
 
-function showNotificationToast(msg) {
+let toastTimer = null;
+
+// Avviso in basso a destra: quelli informativi spariscono da soli, quelli "persistent"
+// (avvertimenti, errori, esiti da leggere con calma) restano finché non vengono chiusi
+function showNotificationToast(msg, { type = 'info', persistent = false } = {}) {
   let toast = document.getElementById('app-toast');
   if (!toast) {
     toast = document.createElement('div');
     toast.id = 'app-toast';
     toast.className = 'app-toast';
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
+    const text = document.createElement('span');
+    text.className = 'app-toast-text';
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'app-toast-close';
+    close.setAttribute('aria-label', 'Chiudi avviso');
+    close.textContent = '✕';
+    close.addEventListener('click', hideNotificationToast);
+    toast.append(text, close);
     document.body.appendChild(toast);
   }
-  toast.textContent = msg;
-  toast.classList.add('show');
-  setTimeout(() => {
-    toast.classList.remove('show');
-  }, 3500);
+  toast.querySelector('.app-toast-text').textContent = msg;
+  toast.classList.remove('info', 'warning', 'error');
+  toast.classList.add(type, 'show');
+  toast.classList.toggle('persistent', persistent);
+  clearTimeout(toastTimer);
+  if (!persistent) {
+    toastTimer = setTimeout(hideNotificationToast, 4000);
+  }
+}
+
+function hideNotificationToast() {
+  const toast = document.getElementById('app-toast');
+  if (toast) toast.classList.remove('show', 'persistent');
 }
 
 // 3. Lettura silenziosa delle schede pubblicate (schede_esercizi/) senza generare decine di 404
@@ -631,16 +665,29 @@ function selectWorksheetFiles(files) {
 
   const ignored = mdFiles.length - unique.length;
   if (ignored > 0 && unique.length > 0) {
-    showNotificationToast(`ℹ️ Ignorati ${ignored} file .md non riconosciuti come schede o con nome duplicato.`);
+    showNotificationToast(`ℹ️ ${ignored} file non sono stati caricati perché non sono schede (es. README) o hanno un nome ripetuto.`, { type: 'warning', persistent: true });
   }
   return unique;
 }
 
+// Gestisce i file scelti o trascinati: un file di lavoro .zip oppure schede .md (anche da una cartella)
 function handleFolderSelect(fileList) {
   if (!fileList || fileList.length === 0) return;
-  const files = selectWorksheetFiles(Array.from(fileList));
+  const all = Array.from(fileList);
+  const zips = all.filter(f => f.name.toLowerCase().endsWith('.zip'));
+  if (zips.length > 0) {
+    if (zips.length > 1) {
+      showNotificationToast(`ℹ️ Hai scelto ${zips.length} file .zip: viene aperto solo «${zips[0].name}».`, { type: 'warning', persistent: true });
+    }
+    openWorkZip(zips[0], zips[0].name);
+    return;
+  }
+  const files = selectWorksheetFiles(all);
   if (files.length === 0) {
-    alert("Nessun file Markdown (.md) di schede trovato nella selezione.");
+    showDialog({
+      title: 'Nessuna scheda trovata',
+      message: 'Tra i file scelti non ci sono schede. Apri il file di lavoro (.zip) creato con «💾 Salva lavoro», oppure i file delle schede (.md).'
+    });
     return;
   }
   processMdFiles(files);
@@ -653,7 +700,8 @@ function processMdFiles(files) {
   const finish = () => {
     worksheets.sort((a, b) => compareFilenames(a.filename, b.filename));
     loadRawWorksheets(worksheets);
-    saveBookToStorage(false);
+    saveBookToStorage(false, { fromFile: true });
+    showNotificationToast(`📂 Aperte ${BLOCKS_DATA.length} unità didattiche.`);
   };
 
   files.forEach(file => {
@@ -685,14 +733,14 @@ async function getFilesFromDataTransferItems(items) {
       if (entry) queue.push(entry);
     } else if (item.getAsFile) {
       const f = item.getAsFile();
-      if (f && f.name.toLowerCase().endsWith('.md')) fileEntries.push(f);
+      if (f && /\.(md|zip)$/i.test(f.name)) fileEntries.push(f);
     }
   }
 
   while (queue.length > 0) {
     const entry = queue.shift();
     if (entry.isFile) {
-      if (entry.name.toLowerCase().endsWith('.md')) {
+      if (/\.(md|zip)$/i.test(entry.name)) {
         await new Promise((resolve) => {
           entry.file(f => {
             fileEntries.push(f);
@@ -837,6 +885,7 @@ function toggleExercise(exerciseId) {
   } else {
     set.add(exerciseId);
   }
+  markSelectionChanged();
   renderActiveBlock();
   renderSidebar();
 }
@@ -845,6 +894,7 @@ function selectAll() {
   const block = BLOCKS_DATA.find(b => b.id === currentBlockId);
   if (!block) return;
   selectedState[block.filename] = new Set(block.exercises.map(e => e.id));
+  markSelectionChanged();
   renderActiveBlock();
   renderSidebar();
 }
@@ -853,6 +903,7 @@ function deselectAll() {
   const block = BLOCKS_DATA.find(b => b.id === currentBlockId);
   if (!block) return;
   selectedState[block.filename] = new Set();
+  markSelectionChanged();
   renderActiveBlock();
   renderSidebar();
 }
@@ -865,6 +916,7 @@ function selectEssentialBes() {
   selectedState[block.filename] = new Set(
     block.exercises.filter(e => essentialTypes.has(e.type)).map(e => e.id)
   );
+  markSelectionChanged();
   renderActiveBlock();
   renderSidebar();
   showNotificationToast("🎯 Attivata Selezione Essenziale (BES): Comprensione, V/F e Lessico.");
@@ -877,40 +929,102 @@ function updateSelectionBadge() {
   document.getElementById('selected-badge').textContent = `${count} di ${total} selezionati`;
 }
 
-// 5. Generazione Anteprima, Modalità Alta Leggibilità (DSA) e Stampa PDF
-function toggleDsaMode() {
-  isDsaMode = !isDsaMode;
-  const modalBody = document.getElementById('modal-content');
-  const btn = document.getElementById('btn-dsa-toggle');
+// 5. Stampa o scarica: anteprima, Alta Leggibilità (DSA), PDF e Word
+// Un "output" è { scope: 'block' | 'book', audience: 'student' | 'teacher' }; il formato si sceglie a parte
 
-  if (modalBody) {
-    modalBody.classList.toggle('dsa-mode', isDsaMode);
-  }
+const EXPORT_PREFS_STORAGE_KEY = 'ANALISI_LIBRO_EXPORT_PREFS';
+let exportChoice = { scope: 'block', audience: 'student', format: 'pdf' };
+let currentOutput = { scope: 'block', audience: 'student' }; // documento mostrato nell'anteprima
+
+// Scelte della finestra "Stampa o scarica" e preferenza DSA ricordate tra le sessioni
+function loadExportPrefs() {
+  try {
+    const prefs = JSON.parse(localStorage.getItem(EXPORT_PREFS_STORAGE_KEY) || '{}');
+    if (prefs.scope === 'block' || prefs.scope === 'book') exportChoice.scope = prefs.scope;
+    if (prefs.audience === 'student' || prefs.audience === 'teacher') exportChoice.audience = prefs.audience;
+    if (prefs.format === 'pdf' || prefs.format === 'word') exportChoice.format = prefs.format;
+    setDsaMode(prefs.dsa === true, false);
+  } catch (_) {}
+}
+
+function saveExportPrefs() {
+  try {
+    localStorage.setItem(EXPORT_PREFS_STORAGE_KEY, JSON.stringify({ ...exportChoice, dsa: isDsaMode }));
+  } catch (_) {}
+}
+
+function setDsaMode(enabled, remember = true) {
+  isDsaMode = !!enabled;
+  const modalBody = document.getElementById('modal-content');
+  if (modalBody) modalBody.classList.toggle('dsa-mode', isDsaMode);
+  const btn = document.getElementById('btn-dsa-toggle');
   if (btn) {
     btn.classList.toggle('active', isDsaMode);
     btn.textContent = isDsaMode ? '🔤 Alta Leggibilità (DSA): ON' : '🔤 Alta Leggibilità (DSA): OFF';
   }
+  const checkbox = document.getElementById('export-dsa');
+  if (checkbox) checkbox.checked = isDsaMode;
+  if (remember) saveExportPrefs();
+  updateExportSummary();
+}
+
+function toggleDsaMode() {
+  setDsaMode(!isDsaMode);
   showNotificationToast(
     isDsaMode
-      ? "🔤 Modalità Alta Leggibilità (DSA) attivata: font sans-serif maggiorato, zero corsivi e righe ampliate."
-      : "🔤 Modalità tipografica standard ripristinata."
+      ? "🔤 Alta leggibilità (DSA) attivata: carattere più grande, niente corsivo e righe più ampie."
+      : "🔤 Impaginazione standard ripristinata."
   );
 }
 
-function buildSingleBlockPrintableHtml(block) {
-  const selectedExercises = getSelectedExercises(block);
+function getCurrentBlock() {
+  return BLOCKS_DATA.find(b => b.id === currentBlockId) || null;
+}
 
-  let exercisesHtml = '';
-  if (selectedExercises.length === 0) {
-    exercisesHtml = `
+function hasTeacherGuide(block) {
+  return !!(block.teacherGuideMd && block.teacherGuideMd.trim());
+}
+
+// Blocchi inclusi in un output: per gli studenti quelli con esercizi scelti, per il docente quelli con la guida
+function getOutputBlocks(output) {
+  const candidates = output.scope === 'book' ? BLOCKS_DATA : [getCurrentBlock()].filter(Boolean);
+  return candidates.filter(block => output.audience === 'teacher' ? hasTeacherGuide(block) : getSelectedExercises(block).length > 0);
+}
+
+// Messaggio di errore se l'output non contiene nulla da stampare, altrimenti null
+function validateOutput(output) {
+  if (BLOCKS_DATA.length === 0) return "Non ci sono ancora schede: segui la guida per crearle o apri un libro salvato.";
+  if (getOutputBlocks(output).length > 0) return null;
+  if (output.audience === 'teacher') {
+    return output.scope === 'book'
+      ? "Nessuna scheda del libro contiene la guida per il docente."
+      : "Questa scheda non contiene la guida per il docente.";
+  }
+  return output.scope === 'book'
+    ? "Non hai scelto nessun esercizio: spunta almeno un esercizio in una delle unità."
+    : "Non hai scelto nessun esercizio per questa unità: spunta almeno un esercizio.";
+}
+
+function describeOutput(output) {
+  const blocks = getOutputBlocks(output);
+  const what = output.audience === 'teacher' ? 'Guida per il docente' : 'Scheda per gli studenti';
+  if (output.scope === 'book') {
+    return `${what} — tutto il libro (${blocks.length} unità)`;
+  }
+  const block = getCurrentBlock();
+  return block ? `${what} — Blocco ${block.blockNumber ?? block.id}: ${block.title}` : what;
+}
+
+function buildStudentBlockHtml(block) {
+  const selectedExercises = getSelectedExercises(block);
+  const exercisesHtml = selectedExercises.length > 0
+    ? joinSelectedExercises(selectedExercises, 'html')
+    : `
       <div style="text-align: center; padding: 3rem; color: #64748b;">
         <h3>Nessun esercizio selezionato per questo blocco.</h3>
         <p>Torna indietro e seleziona almeno un'attività da includere nella scheda.</p>
       </div>
     `;
-  } else {
-    exercisesHtml = joinSelectedExercises(selectedExercises, 'html');
-  }
 
   return `
     <div class="student-doc-header">
@@ -935,81 +1049,7 @@ function buildSingleBlockPrintableHtml(block) {
   `;
 }
 
-function buildPrintableHtml() {
-  const block = BLOCKS_DATA.find(b => b.id === currentBlockId);
-  if (!block) return "<p>Nessun blocco selezionato.</p>";
-  return buildSingleBlockPrintableHtml(block);
-}
-
-let currentPreviewType = 'student'; // 'student' | 'teacher' | 'full'
-
-// Dall'anteprima il DOCX eredita l'impostazione Alta Leggibilità (DSA) attiva
-function exportCurrentPreviewDocx() {
-  const opts = { dsa: isDsaMode };
-  if (currentPreviewType === 'teacher') {
-    exportTeacherDocx(opts);
-  } else if (currentPreviewType === 'full') {
-    exportFullBookDocx(opts);
-  } else {
-    exportStudentDocx(opts);
-  }
-}
-
-function openPrintPreview() {
-  currentPreviewType = 'student';
-  const modalTitle = document.querySelector('#preview-modal .modal-title');
-  if (modalTitle) modalTitle.textContent = "Anteprima Scheda Studente (Solo Esercizi Selezionati)";
-  const modalContent = document.getElementById('modal-content');
-  modalContent.innerHTML = buildPrintableHtml();
-  modalContent.classList.toggle('dsa-mode', isDsaMode);
-  document.getElementById('preview-modal').classList.add('open');
-}
-
-function openFullBookPreview() {
-  if (!BLOCKS_DATA || BLOCKS_DATA.length === 0) {
-    showNotificationToast("Nessun blocco didattico caricato.");
-    return;
-  }
-  // Come nel DOCX, le unità senza esercizi selezionati non vengono incluse nel fascicolo
-  const blocksWithSelection = BLOCKS_DATA.filter(block => getSelectedExercises(block).length > 0);
-  if (blocksWithSelection.length === 0) {
-    showNotificationToast("Nessun esercizio selezionato in nessuna unità.");
-    return;
-  }
-  currentPreviewType = 'full';
-  const modalTitle = document.querySelector('#preview-modal .modal-title');
-  if (modalTitle) modalTitle.textContent = `Fascicolo Completo Studenti (${blocksWithSelection.length} Unità Didattiche)`;
-
-  const fullHtml = blocksWithSelection.map((block, idx) => {
-    const blockHtml = buildSingleBlockPrintableHtml(block);
-    return idx === 0 ? blockHtml : `<div class="page-break-block">${blockHtml}</div>`;
-  }).join('\n');
-
-  const modalContent = document.getElementById('modal-content');
-  modalContent.innerHTML = fullHtml;
-  modalContent.classList.toggle('dsa-mode', isDsaMode);
-  document.getElementById('preview-modal').classList.add('open');
-}
-
-function closePrintPreview() {
-  document.getElementById('preview-modal').classList.remove('open');
-}
-
-function printStudentSheet() {
-  openPrintPreview();
-  setTimeout(() => { window.print(); }, 350);
-}
-
-function buildTeacherGuideHtml() {
-  const block = BLOCKS_DATA.find(b => b.id === currentBlockId);
-  if (!block) return "<p>Nessun blocco selezionato.</p>";
-  if (!block.teacherGuideMd) {
-    return `
-      <div style="text-align: center; padding: 3rem; color: #64748b;">
-        <h3>Nessuna guida per il docente trovata in questo blocco.</h3>
-      </div>
-    `;
-  }
+function buildTeacherBlockHtml(block) {
   return `
     <div class="student-doc-header">
       <div class="doc-title">GUIDA PER IL DOCENTE & SOLUZIONI</div>
@@ -1024,27 +1064,139 @@ function buildTeacherGuideHtml() {
   `;
 }
 
-function openTeacherPreview() {
-  currentPreviewType = 'teacher';
-  const modalTitle = document.querySelector('#preview-modal .modal-title');
-  if (modalTitle) modalTitle.textContent = "Anteprima Guida Docente & Soluzioni";
-  const modalContent = document.getElementById('modal-content');
-  modalContent.innerHTML = buildTeacherGuideHtml();
-  modalContent.classList.toggle('dsa-mode', isDsaMode);
-  document.getElementById('preview-modal').classList.add('open');
+// Ogni unità inizia su una nuova pagina
+function buildOutputHtml(output) {
+  const buildBlock = output.audience === 'teacher' ? buildTeacherBlockHtml : buildStudentBlockHtml;
+  return getOutputBlocks(output).map((block, idx) => {
+    const blockHtml = buildBlock(block);
+    return idx === 0 ? blockHtml : `<div class="page-break-block">${blockHtml}</div>`;
+  }).join('\n');
 }
 
-function printTeacherGuide() {
-  openTeacherPreview();
-  setTimeout(() => { window.print(); }, 350);
+function openOutputPreview(output) {
+  const error = validateOutput(output);
+  if (error) {
+    showNotificationToast(`⚠️ ${error}`, { type: 'warning', persistent: true });
+    return false;
+  }
+  currentOutput = { scope: output.scope, audience: output.audience };
+  const modalTitle = document.querySelector('#preview-modal .modal-title');
+  if (modalTitle) modalTitle.textContent = `Anteprima: ${describeOutput(currentOutput)}`;
+  const modalContent = document.getElementById('modal-content');
+  modalContent.innerHTML = buildOutputHtml(currentOutput);
+  modalContent.classList.toggle('dsa-mode', isDsaMode);
+  modalContent.scrollTop = 0;
+  document.getElementById('preview-modal').classList.add('open');
+  return true;
+}
+
+function printOutput(output) {
+  if (openOutputPreview(output)) {
+    setTimeout(() => { window.print(); }, 350);
+  }
+}
+
+function closePrintPreview() {
+  document.getElementById('preview-modal').classList.remove('open');
+}
+
+// Finestra "Stampa o scarica"
+function openExportDialog() {
+  if (BLOCKS_DATA.length === 0) {
+    showNotificationToast("⚠️ Non ci sono ancora schede: segui la guida per crearle o apri un libro salvato.", { type: 'warning', persistent: true });
+    return;
+  }
+  renderExportChoices();
+  document.getElementById('export-modal').classList.add('open');
+}
+
+function closeExportDialog() {
+  document.getElementById('export-modal').classList.remove('open');
+}
+
+function setExportChoice(key, value) {
+  exportChoice[key] = value;
+  saveExportPrefs();
+  renderExportChoices();
+}
+
+function renderExportChoices() {
+  document.querySelectorAll('#export-modal .choice-btn').forEach(btn => {
+    const active = exportChoice[btn.dataset.key] === btn.dataset.value;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-checked', active ? 'true' : 'false');
+  });
+
+  const block = getCurrentBlock();
+  const descBlock = document.getElementById('export-desc-block');
+  if (descBlock) descBlock.textContent = block ? `Blocco ${block.blockNumber ?? block.id}: ${block.title}` : '';
+  const descBook = document.getElementById('export-desc-book');
+  if (descBook) descBook.textContent = `${BLOCKS_DATA.length} unità, ognuna su una nuova pagina`;
+
+  const checkbox = document.getElementById('export-dsa');
+  if (checkbox) checkbox.checked = isDsaMode;
+  updateExportSummary();
+}
+
+function updateExportSummary() {
+  const summary = document.getElementById('export-summary');
+  if (!summary) return;
+  const goBtn = document.getElementById('export-go-btn');
+  const previewBtn = document.getElementById('export-preview-btn');
+  const hint = document.getElementById('export-print-hint');
+  const isPdf = exportChoice.format === 'pdf';
+
+  if (goBtn) goBtn.textContent = isPdf ? '🖨️ Stampa / Salva PDF' : '📄 Scarica Word';
+  if (hint) hint.style.display = isPdf ? '' : 'none';
+
+  const error = validateOutput(exportChoice);
+  summary.classList.toggle('warning', !!error);
+  if (goBtn) goBtn.disabled = !!error;
+  if (previewBtn) previewBtn.disabled = !!error;
+  if (error) {
+    summary.textContent = `⚠️ ${error}`;
+    return;
+  }
+
+  const blocks = getOutputBlocks(exportChoice);
+  let text = describeOutput(exportChoice);
+  if (exportChoice.audience === 'student') {
+    const count = blocks.reduce((sum, b) => sum + getSelectedExercises(b).length, 0);
+    text += ` · ${count} ${count === 1 ? 'esercizio scelto' : 'esercizi scelti'}`;
+  }
+  if (exportChoice.scope === 'book' && blocks.length < BLOCKS_DATA.length) {
+    const skipped = BLOCKS_DATA.length - blocks.length;
+    text += exportChoice.audience === 'teacher'
+      ? ` · ${skipped} senza guida docente (saltate)`
+      : ` · ${skipped} senza esercizi scelti (saltate)`;
+  }
+  text += isPdf ? ' · stampa o PDF' : ' · file Word';
+  if (isDsaMode) text += ' · alta leggibilità';
+  summary.textContent = text;
+}
+
+function runExport(action) {
+  const output = { scope: exportChoice.scope, audience: exportChoice.audience };
+  if (validateOutput(output)) {
+    updateExportSummary();
+    return;
+  }
+  closeExportDialog();
+  if (action === 'preview') {
+    openOutputPreview(output);
+  } else if (exportChoice.format === 'pdf') {
+    printOutput(output);
+  } else {
+    exportOutputDocx(output);
+  }
 }
 
 window.addEventListener('beforeprint', () => {
   document.documentElement.classList.add('is-printing');
   document.body.classList.add('is-printing');
   const modalContent = document.getElementById('modal-content');
-  if (!modalContent || !modalContent.innerHTML.trim()) {
-    openPrintPreview();
+  if ((!modalContent || !modalContent.innerHTML.trim()) && BLOCKS_DATA.length > 0) {
+    openOutputPreview(currentOutput);
   }
 });
 
@@ -1075,9 +1227,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (dz) dz.classList.remove('dragover');
 
     if (e.dataTransfer && e.dataTransfer.items) {
-      const files = selectWorksheetFiles(await getFilesFromDataTransferItems(e.dataTransfer.items));
+      const files = await getFilesFromDataTransferItems(e.dataTransfer.items);
       if (files.length > 0) {
-        processMdFiles(files);
+        handleFolderSelect(files);
         return;
       }
     }
@@ -1132,35 +1284,40 @@ window.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Esc: chiude prima la finestra di dialogo, poi una sola finestra alla volta (la più in primo piano)
+  const escapeClosers = [
+    ['export-modal', closeExportDialog],
+    ['library-modal', closeLibraryModal],
+    ['ai-import-modal', closeAiImportModal],
+    ['prompt-context-modal', closePromptContextModal],
+    ['help-modal', closeHelpModal],
+    ['editor-modal', closeMdEditor],
+    ['preview-modal', closePrintPreview]
+  ];
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      const em = document.getElementById('editor-modal');
-      if (em && em.classList.contains('open')) {
-        closeMdEditor();
-      }
-      const hm = document.getElementById('help-modal');
-      if (hm && hm.classList.contains('open')) {
-        closeHelpModal();
-      }
-      const pcm = document.getElementById('prompt-context-modal');
-      if (pcm && pcm.classList.contains('open')) {
-        closePromptContextModal();
-      }
-      const aim = document.getElementById('ai-import-modal');
-      if (aim && aim.classList.contains('open')) {
-        closeAiImportModal();
-      }
+    if (e.key !== 'Escape') return;
+    if (isDialogOpen()) {
+      cancelDialog();
+      return;
     }
+    const open = escapeClosers.find(([id]) => document.getElementById(id)?.classList.contains('open'));
+    if (open) open[1]();
   });
 
-  const aiImportModal = document.getElementById('ai-import-modal');
-  if (aiImportModal) {
-    aiImportModal.addEventListener('click', (e) => {
-      if (e.target === aiImportModal) {
-        closeAiImportModal();
+  // Clic fuori dalla finestra = chiudi (per la finestra di dialogo = annulla)
+  [['ai-import-modal', closeAiImportModal], ['export-modal', closeExportDialog], ['library-modal', closeLibraryModal], ['dialog-modal', cancelDialog]]
+    .forEach(([id, close]) => {
+      const modal = document.getElementById(id);
+      if (modal) {
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) close();
+        });
       }
     });
-  }
+
+  // Preferenze di stampa (DSA compresa) e stato dell'ultimo salvataggio
+  loadExportPrefs();
+  readSaveInfo();
 
   // Guida rapida: precaricamento di prompt e contesto (la copia negli appunti deve avvenire
   // subito dopo il clic, senza attendere una richiesta di rete)
@@ -1172,29 +1329,35 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // 2. Le modifiche locali (editor / importazione AI) non vengono mai sovrascritte senza chiedere
   if (stored && stored.locallyEdited && serverWorksheets.length > 0) {
-    const keepLocal = confirm(
-      "Nel browser sono presenti modifiche alle schede (editor o importazione AI) che non sono pubblicate sul sito.\n\n" +
-      "OK = ripristina le tue modifiche locali\n" +
-      "Annulla = carica le schede pubblicate sul sito (le modifiche locali verranno scartate)"
-    );
+    const keepLocal = await showDialog({
+      title: 'Hai delle modifiche non pubblicate',
+      message: "In questo browser ci sono modifiche alle schede (fatte nell'editor o incollando risposte dell'AI) che non sono presenti sul sito. Quale versione vuoi usare?",
+      buttons: [
+        { label: 'Usa la versione del sito (scarta le mie modifiche)', value: false, style: 'danger' },
+        { label: 'Usa le mie modifiche', value: true, style: 'primary' }
+      ],
+      cancelValue: true
+    });
     if (keepLocal) {
       loadRawWorksheets(stored.worksheets, serverWorksheets);
-      showNotificationToast("↩️ Modifiche locali ripristinate. \"Ripristina Iniziale\" riporta alla versione del sito.");
+      renderSaveStatus();
+      showNotificationToast("↩️ Le tue modifiche sono state ripristinate. «Annulla tutte le modifiche» nell'editor riporta una scheda alla versione del sito.");
     } else {
       loadRawWorksheets(serverWorksheets);
-      saveBookToStorage(false);
+      saveBookToStorage(false, { fromFile: true });
     }
     return;
   }
 
   if (serverWorksheets.length > 0) {
     loadRawWorksheets(serverWorksheets);
-    saveBookToStorage(false);
+    saveBookToStorage(false, { fromFile: true });
     return;
   }
 
   if (stored) {
     loadRawWorksheets(stored.worksheets);
+    renderSaveStatus();
     return;
   }
 
@@ -1256,12 +1419,35 @@ function openMdEditor(targetBlockIdOrFilename = null) {
   document.getElementById('editor-modal').classList.add('open');
 }
 
-function closeMdEditor() {
+async function closeMdEditor() {
   if (isEditorDirty) {
-    const confirmClose = confirm("Ci sono modifiche non applicate. Sei sicuro di voler chiudere l'editor? Le modifiche andranno perse.");
-    if (!confirmClose) return;
+    const choice = await showDialog({
+      title: 'Modifiche non salvate',
+      message: `Hai modificato «${editorFileLabel(editorCurrentFile)}» senza salvare. Che cosa vuoi fare?`,
+      buttons: [
+        { label: 'Continua a modificare', value: 'stay' },
+        { label: 'Esci senza salvare', value: 'discard', style: 'danger' },
+        { label: '✅ Salva ed esci', value: 'save', style: 'primary' }
+      ],
+      cancelValue: 'stay'
+    });
+    if (choice === 'stay') return;
+    if (choice === 'save') {
+      applyEditorChanges();
+    } else {
+      setEditorDirty(false);
+    }
   }
   document.getElementById('editor-modal').classList.remove('open');
+}
+
+// Nome leggibile di una scheda nell'editor: "Dati del libro" o "Blocco N: titolo"
+function editorFileLabel(filename) {
+  if (!filename) return '';
+  if (isDatiLibro(filename)) return 'Dati del libro';
+  const block = BLOCKS_DATA.find(b => b.filename === filename);
+  if (block) return `Blocco ${block.blockNumber ?? block.id}: ${block.title}`;
+  return filename.replace(/\.md$/i, '');
 }
 
 function populateEditorFileSelect() {
@@ -1275,7 +1461,7 @@ function populateEditorFileSelect() {
   if (datiLibro) {
     const opt = document.createElement('option');
     opt.value = datiLibro;
-    opt.textContent = `📖 ${datiLibro} (Metadati Libro)`;
+    opt.textContent = '📖 Dati del libro';
     select.appendChild(opt);
   }
 
@@ -1283,23 +1469,34 @@ function populateEditorFileSelect() {
   blocks.forEach(filename => {
     const opt = document.createElement('option');
     opt.value = filename;
-    opt.textContent = `📑 ${filename}`;
+    opt.textContent = `📑 ${editorFileLabel(filename)}`;
+    opt.title = filename;
     select.appendChild(opt);
   });
 
   const newOpt = document.createElement('option');
   newOpt.value = '__NEW_FILE__';
-  newOpt.textContent = '➕ Nuovo File .md...';
+  newOpt.textContent = '➕ Nuova scheda…';
   select.appendChild(newOpt);
 }
 
-function loadEditorFile(filename, force = false) {
+async function loadEditorFile(filename, force = false) {
   if (!force && isEditorDirty) {
-    const discard = confirm(`Ci sono modifiche non applicate in "${editorCurrentFile}". Vuoi scartarle e passare a "${filename}"?`);
-    if (!discard) {
+    const choice = await showDialog({
+      title: 'Modifiche non salvate',
+      message: `Hai modificato «${editorFileLabel(editorCurrentFile)}» senza salvare. Che cosa vuoi fare prima di aprire «${editorFileLabel(filename)}»?`,
+      buttons: [
+        { label: 'Resta su questa scheda', value: 'stay' },
+        { label: 'Cambia senza salvare', value: 'discard', style: 'danger' },
+        { label: '✅ Salva e cambia', value: 'save', style: 'primary' }
+      ],
+      cancelValue: 'stay'
+    });
+    if (choice === 'stay') {
       document.getElementById('editor-file-select').value = editorCurrentFile;
       return;
     }
+    if (choice === 'save') applyEditorChanges();
   }
 
   editorCurrentFile = filename;
@@ -1318,36 +1515,46 @@ function loadEditorFile(filename, force = false) {
   renderEditorLivePreview();
 }
 
-function handleEditorFileSelectChange(selectedVal) {
-  if (selectedVal === '__NEW_FILE__') {
-    const nextNum = BLOCKS_DATA.length + 1;
-    const defaultName = `blocco_${String(nextNum).padStart(2, '0')}_esercizi.md`;
-    const newName = prompt("Inserisci il nome del nuovo file Markdown (.md):", defaultName);
-    if (!newName || !newName.trim()) {
-      document.getElementById('editor-file-select').value = editorCurrentFile;
-      return;
-    }
-
-    const cleanName = newName.trim().endsWith('.md') ? newName.trim() : `${newName.trim()}.md`;
-    if (RAW_FILES_CACHE.has(cleanName)) {
-      alert(`Esiste già un file con nome "${cleanName}".`);
-      loadEditorFile(cleanName);
-      return;
-    }
-
-    const starterTemplate = getStarterWorksheetTemplate(nextNum);
-    RAW_FILES_CACHE.set(cleanName, starterTemplate);
-    if (!ORIGINAL_FILES_CACHE.has(cleanName)) {
-      ORIGINAL_FILES_CACHE.set(cleanName, starterTemplate);
-    }
-
-    populateEditorFileSelect();
-    loadEditorFile(cleanName, true);
-    setEditorDirty(true);
-    showNotificationToast(`Nuovo file "${cleanName}" creato nel modello standard.`);
-  } else {
+async function handleEditorFileSelectChange(selectedVal) {
+  if (selectedVal !== '__NEW_FILE__') {
     loadEditorFile(selectedVal);
+    return;
   }
+
+  const select = document.getElementById('editor-file-select');
+  const nextNum = nextFreeBlockNumber();
+  const answer = await askText({
+    title: '➕ Nuova scheda',
+    message: 'Numero del blocco della nuova scheda. Verrà creata partendo dal modello standard, che potrai poi modificare.',
+    value: String(nextNum),
+    placeholder: 'es. 3',
+    okLabel: 'Crea la scheda'
+  });
+  const number = answer ? parseInt(answer, 10) : NaN;
+  if (!Number.isInteger(number) || number < 1) {
+    if (answer) showNotificationToast('⚠️ Scrivi un numero di blocco valido, ad esempio 3.', { type: 'warning', persistent: true });
+    select.value = editorCurrentFile;
+    return;
+  }
+
+  const cleanName = `blocco_${String(number).padStart(2, '0')}_esercizi.md`;
+  if (RAW_FILES_CACHE.has(cleanName)) {
+    showNotificationToast(`ℹ️ Il Blocco ${number} esiste già: lo apro per modificarlo.`);
+    populateEditorFileSelect();
+    loadEditorFile(cleanName);
+    return;
+  }
+
+  const starterTemplate = getStarterWorksheetTemplate(number);
+  RAW_FILES_CACHE.set(cleanName, starterTemplate);
+  if (!ORIGINAL_FILES_CACHE.has(cleanName)) {
+    ORIGINAL_FILES_CACHE.set(cleanName, starterTemplate);
+  }
+
+  populateEditorFileSelect();
+  await loadEditorFile(cleanName, true);
+  setEditorDirty(true);
+  showNotificationToast(`➕ Creata la scheda del Blocco ${number} dal modello standard: completala e premi «Salva modifiche».`);
 }
 
 function handleEditorInput() {
@@ -1521,7 +1728,7 @@ function applyEditorChanges() {
   saveBookToStorage(true);
 
   setEditorDirty(false);
-  showNotificationToast(`✅ File "${editorCurrentFile}" salvato e applicato con successo!`);
+  showNotificationToast(`✅ Modifiche salvate: «${editorFileLabel(editorCurrentFile)}».`);
 }
 
 function getAllRawWorksheets() {
@@ -1538,42 +1745,7 @@ function downloadCurrentEditorFile() {
   if (!textarea || !editorCurrentFile) return;
   const content = textarea.value;
   downloadMarkdownFile(editorCurrentFile, content);
-  showNotificationToast(`⬇️ Download completato per "${editorCurrentFile}"`);
-}
-
-// Scarica tutti i file in un unico .zip (cartella schede_esercizi/ con manifest.json pronta da pubblicare)
-async function downloadAllMarkdownFiles() {
-  if (isEditorDirty) {
-    applyEditorChanges();
-  }
-  const allFiles = getAllRawWorksheets();
-  if (allFiles.length === 0) {
-    showNotificationToast("Nessun file Markdown presente da scaricare.");
-    return;
-  }
-
-  if (typeof JSZip === 'undefined') {
-    allFiles.forEach((file, idx) => {
-      setTimeout(() => {
-        downloadMarkdownFile(file.filename, file.markdown);
-      }, idx * 250);
-    });
-    showNotificationToast(`📦 Avviato il download di ${allFiles.length} file Markdown!`);
-    return;
-  }
-
-  try {
-    const zip = new JSZip();
-    const folder = zip.folder('schede_esercizi');
-    allFiles.forEach(file => folder.file(file.filename, file.markdown));
-    folder.file('manifest.json', JSON.stringify(allFiles.map(file => file.filename), null, 2) + '\n');
-    const blob = await zip.generateAsync({ type: 'blob' });
-    downloadBlob(blob, 'schede_esercizi.zip');
-    showNotificationToast(`📦 Scaricato schede_esercizi.zip con ${allFiles.length} file e manifest.json!`);
-  } catch (err) {
-    console.error(err);
-    showNotificationToast("Errore durante la creazione dell'archivio .zip.");
-  }
+  showNotificationToast(`⬇️ Scaricata la scheda «${editorFileLabel(editorCurrentFile)}» (${editorCurrentFile}).`);
 }
 
 function downloadMarkdownFile(filename, content) {
@@ -1590,47 +1762,21 @@ function downloadMarkdownFile(filename, content) {
   }, 100);
 }
 
-async function saveDirectToFileSystem() {
-  const textarea = document.getElementById('editor-textarea');
-  if (!textarea || !editorCurrentFile) return;
-  const content = textarea.value;
-  const filename = editorCurrentFile;
-
-  if ('showSaveFilePicker' in window) {
-    try {
-      const handle = await window.showSaveFilePicker({
-        suggestedName: filename,
-        types: [{
-          description: 'File Markdown (*.md)',
-          accept: {
-            'text/markdown': ['.md'],
-            'text/plain': ['.txt']
-          }
-        }]
-      });
-      const writable = await handle.createWritable();
-      await writable.write(content);
-      await writable.close();
-      applyEditorChanges();
-      showNotificationToast(`💾 File "${filename}" salvato direttamente su disco!`);
-      return;
-    } catch (err) {
-      if (err.name === 'AbortError') return;
-      console.warn("showSaveFilePicker errore:", err);
-    }
-  }
-
-  downloadCurrentEditorFile();
-}
-
-function revertEditorCurrentFile() {
+async function revertEditorCurrentFile() {
   if (!editorCurrentFile || !ORIGINAL_FILES_CACHE.has(editorCurrentFile)) {
-    showNotificationToast("Nessuna versione originale registrata per questo file.");
+    showNotificationToast("ℹ️ Per questa scheda non c'è una versione iniziale a cui tornare.");
     return;
   }
-  if (!confirm(`Vuoi davvero ripristinare "${editorCurrentFile}" al contenuto iniziale caricato? Tutte le modifiche andranno perse.`)) {
-    return;
-  }
+  const confirmed = await showDialog({
+    title: 'Annullare tutte le modifiche?',
+    message: `«${editorFileLabel(editorCurrentFile)}» tornerà com'era quando è stata caricata. Tutte le modifiche fatte da allora andranno perse.`,
+    buttons: [
+      { label: 'Mantieni le modifiche', value: false },
+      { label: '↩️ Annulla le modifiche', value: true, style: 'danger' }
+    ],
+    cancelValue: false
+  });
+  if (!confirmed) return;
   const original = ORIGINAL_FILES_CACHE.get(editorCurrentFile);
   const textarea = document.getElementById('editor-textarea');
   if (textarea) textarea.value = original;
@@ -1638,7 +1784,7 @@ function revertEditorCurrentFile() {
   updateEditorStats();
   renderEditorLivePreview();
   applyEditorChanges();
-  showNotificationToast(`↩️ "${editorCurrentFile}" ripristinato alla versione iniziale.`);
+  showNotificationToast(`↩️ «${editorFileLabel(editorCurrentFile)}» è tornata alla versione iniziale.`);
 }
 
 function getStarterWorksheetTemplate(blockNumber = 1) {
@@ -1744,45 +1890,52 @@ Sintesi narrativa degli eventi chiave di questa unità per il docente...
 }
 
 // ============================================================
-// 8. Modulo Istruzioni & Help (README.md)
+// 8. Modulo Guida e domande frequenti (GUIDA_DOCENTI.md) e Manuale tecnico (README.md)
 // ============================================================
 
-let readmeContentCache = null;
+const HELP_DOCUMENTS = {
+  guida: { file: 'GUIDA_DOCENTI.md', name: 'la guida per docenti' },
+  readme: { file: 'README.md', name: 'il manuale tecnico' }
+};
+const helpContentCache = {};
 
-async function openHelpModal() {
+async function openHelpModal(doc = 'guida') {
   const modal = document.getElementById('help-modal');
   const contentEl = document.getElementById('help-content');
+  const documentInfo = HELP_DOCUMENTS[doc] || HELP_DOCUMENTS.guida;
   if (!modal || !contentEl) return;
 
   modal.classList.add('open');
+  document.getElementById('btn-help-guida')?.classList.toggle('active', doc !== 'readme');
+  document.getElementById('btn-help-readme')?.classList.toggle('active', doc === 'readme');
+  contentEl.scrollTop = 0;
 
-  if (readmeContentCache) {
-    contentEl.innerHTML = renderReadmeMarkdown(readmeContentCache);
-    return;
+  if (!helpContentCache[doc]) {
+    contentEl.innerHTML = '<div style="text-align: center; padding: 3rem; color: #64748b;">Caricamento in corso...</div>';
+    try {
+      const res = await fetch(documentInfo.file);
+      if (res.ok) {
+        const text = await res.text();
+        if (text && text.trim().length > 0) helpContentCache[doc] = text;
+      }
+    } catch (err) {
+      console.warn(`Impossibile caricare ${documentInfo.file}:`, err);
+    }
   }
 
-  try {
-    const res = await fetch('README.md');
-    if (res.ok) {
-      const text = await res.text();
-      if (text && text.trim().length > 0) {
-        readmeContentCache = text;
-        contentEl.innerHTML = renderReadmeMarkdown(text);
-        return;
-      }
-    }
-  } catch (err) {
-    console.warn("Impossibile caricare README.md tramite fetch:", err);
+  if (helpContentCache[doc]) {
+    contentEl.innerHTML = renderReadmeMarkdown(helpContentCache[doc]);
+    return;
   }
 
   contentEl.innerHTML = `
     <div style="padding: 2.5rem 1rem; text-align: center;">
       <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📖</div>
       <h3 style="font-size: 1.25rem; font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;">
-        Manuale d'Uso & Istruzioni
+        Guida non disponibile
       </h3>
       <p style="color: #64748b; margin-bottom: 1.5rem; max-width: 500px; margin-left: auto; margin-right: auto;">
-        Impossibile caricare direttamente il manuale dal protocollo locale. Avvia un server web locale o consulta il file README.md.
+        Non è stato possibile aprire ${documentInfo.name} (${documentInfo.file}). Se hai aperto l'app direttamente dal computer, usa la versione online del sito oppure apri il file con un editor di testo.
       </p>
     </div>
   `;
@@ -1930,13 +2083,13 @@ function switchPromptContextTab(tab) {
 
   if (tab === 'prompt') {
     if (subtitle) {
-      subtitle.textContent = "Prompt chiavi in mano da fornire all'Agente AI per avviare l'elaborazione progressiva del libro.";
+      subtitle.textContent = "Il testo da copiare e incollare nella chat del taccuino NotebookLM per far preparare le schede.";
     }
     const raw = promptRawCache || getFallbackPromptText();
     content.innerHTML = renderReadmeMarkdown(raw);
   } else {
     if (subtitle) {
-      subtitle.textContent = "Modello pedagogico, ruolo del docente, criteri didattici e regole per la generazione delle schede.";
+      subtitle.textContent = "Le regole didattiche che l'AI deve seguire: da aggiungere come fonte del taccuino NotebookLM.";
     }
     const raw = contextRawCache || getFallbackContextText();
     content.innerHTML = renderReadmeMarkdown(raw);
@@ -2610,97 +2763,54 @@ function buildStudentDocxMarkdown(block, headingLevel = 2) {
   return md;
 }
 
+function buildTeacherDocxMarkdown(block, headingLevel = 2) {
+  return `${'#'.repeat(headingLevel)} *${globalBookTitle}* — ${block.title}\n\n${block.teacherGuideMd.trim()}\n`;
+}
+
 function docxFileName(base, suffix, opts = {}) {
   const safeName = String(base || 'Scheda').replace(/[^a-zA-Z0-9_\-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
   return `${safeName || 'Scheda'}_${suffix}${opts.dsa ? '_DSA' : ''}.docx`;
 }
 
-async function exportStudentDocx(opts = {}) {
-  const block = BLOCKS_DATA.find(b => b.id === currentBlockId);
-  if (!block) {
-    showNotificationToast("Nessun blocco didattico selezionato.");
+// Esporta in Word lo stesso documento dell'anteprima: unità o libro intero, studenti o docente.
+// Nel libro intero ogni unità inizia su una nuova pagina
+async function exportOutputDocx(output, opts = { dsa: isDsaMode }) {
+  const error = validateOutput(output);
+  if (error) {
+    showNotificationToast(`⚠️ ${error}`, { type: 'warning', persistent: true });
     return;
   }
-  if (getSelectedExercises(block).length === 0) {
-    showNotificationToast("Nessun esercizio selezionato da esportare.");
-    return;
+  const blocks = getOutputBlocks(output);
+  const isTeacher = output.audience === 'teacher';
+  const isBook = output.scope === 'book';
+
+  let md;
+  if (isBook) {
+    md = `# ${isTeacher ? 'GUIDA DOCENTE E SOLUZIONI' : 'FASCICOLO DIDATTICO COMPLETO'}\n## *${globalBookTitle}*\n\n`;
+    blocks.forEach(block => {
+      md += `\n\n${DOCX_PAGE_BREAK}\n\n`;
+      md += isTeacher ? buildTeacherDocxMarkdown(block, 1) : buildStudentDocxMarkdown(block, 1);
+    });
+  } else if (isTeacher) {
+    md = `# GUIDA E SOLUZIONI PER IL DOCENTE\n` + buildTeacherDocxMarkdown(blocks[0], 2);
+  } else {
+    md = `# SCHEDA DIDATTICA DI LETTURA E COMPRENSIONE\n` + buildStudentDocxMarkdown(blocks[0], 2);
+    md += `\n\n---\n*Scuola Secondaria di Primo Grado — Scheda di Lavoro Individuale o di Coppia*\n`;
   }
 
-  let md = `# SCHEDA DIDATTICA DI LETTURA E COMPRENSIONE\n`;
-  md += buildStudentDocxMarkdown(block, 2);
-  md += `\n\n---\n*Scuola Secondaria di Primo Grado — Scheda di Lavoro Individuale o di Coppia*\n`;
+  const fileName = isBook
+    ? docxFileName(globalBookTitle || 'Fascicolo_Didattico', isTeacher ? 'Guida_Docente_Completa' : 'Fascicolo_Studenti', opts)
+    : docxFileName(blocks[0].title, isTeacher ? 'Guida_Docente' : 'Studenti', opts);
 
   try {
-    showNotificationToast("⏳ Generazione file DOCX in corso...");
+    showNotificationToast("⏳ Preparazione del file Word in corso...");
     const xml = markdownToWordXml(md, opts);
     const blob = await buildDocxZipBlob(xml, opts);
-    const fileName = docxFileName(block.title, 'Studenti', opts);
     downloadBlob(blob, fileName);
-    showNotificationToast(`📄 File "${fileName}" scaricato! Pronto per Google Drive e Word.`);
+    showNotificationToast(`📄 Scaricato «${fileName}»: aprilo con Word o caricalo su Google Drive.`);
   } catch (err) {
     console.error(err);
-    showNotificationToast("Errore durante la generazione del file DOCX.");
-  }
-}
-
-async function exportTeacherDocx(opts = {}) {
-  const block = BLOCKS_DATA.find(b => b.id === currentBlockId);
-  if (!block) {
-    showNotificationToast("Nessun blocco didattico selezionato.");
-    return;
-  }
-  if (!block.teacherGuideMd || !block.teacherGuideMd.trim()) {
-    showNotificationToast("Nessuna guida per il docente presente in questa unità.");
-    return;
-  }
-
-  let md = `# GUIDA E SOLUZIONI PER IL DOCENTE\n`;
-  md += `## *${globalBookTitle}* — ${block.title}\n\n`;
-  md += block.teacherGuideMd.trim();
-
-  try {
-    showNotificationToast("⏳ Generazione file DOCX in corso...");
-    const xml = markdownToWordXml(md, opts);
-    const blob = await buildDocxZipBlob(xml, opts);
-    const fileName = docxFileName(block.title, 'Guida_Docente', opts);
-    downloadBlob(blob, fileName);
-    showNotificationToast(`📄 File "${fileName}" scaricato! Pronto per Google Drive e Word.`);
-  } catch (err) {
-    console.error(err);
-    showNotificationToast("Errore durante la generazione del file DOCX.");
-  }
-}
-
-async function exportFullBookDocx(opts = {}) {
-  if (!BLOCKS_DATA || BLOCKS_DATA.length === 0) {
-    showNotificationToast("Nessun blocco didattico caricato.");
-    return;
-  }
-  const blocksWithSelection = BLOCKS_DATA.filter(block => getSelectedExercises(block).length > 0);
-  if (blocksWithSelection.length === 0) {
-    showNotificationToast("Nessun esercizio selezionato in nessuna unità.");
-    return;
-  }
-
-  let md = `# FASCICOLO DIDATTICO COMPLETO\n`;
-  md += `## *${globalBookTitle}*\n\n`;
-
-  // Ogni unità didattica inizia su una nuova pagina
-  blocksWithSelection.forEach(block => {
-    md += `\n\n${DOCX_PAGE_BREAK}\n\n`;
-    md += buildStudentDocxMarkdown(block, 1);
-  });
-
-  try {
-    showNotificationToast("⏳ Generazione fascicolo completo DOCX...");
-    const xml = markdownToWordXml(md, opts);
-    const blob = await buildDocxZipBlob(xml, opts);
-    const fileName = docxFileName(globalBookTitle || 'Fascicolo_Didattico', 'Fascicolo_Completo_Studenti', opts);
-    downloadBlob(blob, fileName);
-    showNotificationToast(`📄 File "${fileName}" scaricato!`);
-  } catch (err) {
-    console.error(err);
-    showNotificationToast("Errore durante la generazione del fascicolo DOCX.");
+    showNotificationToast("❌ Non è stato possibile creare il file Word. Riprova; se il problema persiste usa «Stampa o PDF».", { type: 'error', persistent: true });
   }
 }
 
@@ -2778,19 +2888,35 @@ function splitAiResponse(text) {
   return files;
 }
 
-function importAiResponse() {
+async function importAiResponse() {
   const textarea = document.getElementById('ai-import-textarea');
   if (!textarea) return;
   const files = splitAiResponse(textarea.value);
   if (files.length === 0) {
-    alert("Nessun file riconosciuto.\n\nVerifica che il testo contenga i marcatori [[FILE: nome.md]] oppure i titoli \"# Dati del Libro\" / \"# SCHEDA DIDATTICA\".");
+    await showDialog({
+      title: 'Nessuna scheda riconosciuta',
+      message: "Nel testo incollato non ci sono schede. Controlla di aver copiato tutta la risposta di NotebookLM: deve contenere le righe [[FILE: …]] oppure i titoli «Dati del Libro» e «SCHEDA DIDATTICA»."
+    });
     return;
   }
 
-  const overwritten = files.filter(f => RAW_FILES_CACHE.has(f.filename)).map(f => f.filename);
-  if (overwritten.length > 0 && !confirm(`I seguenti file esistono già e verranno sovrascritti:\n\n${overwritten.join('\n')}\n\nContinuare?`)) {
-    return;
+  const overwritten = files.filter(f => RAW_FILES_CACHE.has(f.filename));
+  if (overwritten.length > 0) {
+    const labels = overwritten.map(f => `• ${editorFileLabel(f.filename)}`).join('\n');
+    const replace = await showDialog({
+      title: 'Alcune schede esistono già',
+      message: `Queste schede sono già presenti e verranno sostituite dalla nuova versione:\n${labels}`,
+      buttons: [
+        { label: 'Annulla', value: false },
+        { label: 'Sostituisci', value: true, style: 'primary' }
+      ],
+      cancelValue: false
+    });
+    if (!replace) return;
   }
+
+  // Primo contenuto di un nuovo libro: nessun file di lavoro ancora salvato
+  if (RAW_FILES_CACHE.size === 0) saveInfo = { savedAt: null, fileSavedAt: null };
 
   let focusFilename = null;
   files.forEach(f => {
@@ -2805,11 +2931,12 @@ function importAiResponse() {
   saveBookToStorage(true);
   textarea.value = '';
   closeAiImportModal();
-  showNotificationToast(`📥 Importati ${files.length} file: ${files.map(f => f.filename).join(', ')}`);
+  const added = files.map(f => editorFileLabel(f.filename)).join(', ');
+  showNotificationToast(`📥 Aggiunte ${files.length} schede: ${added}. Ricorda di chiedere all'AI il blocco successivo.`, { persistent: true });
 }
 
 // ============================================================
-// 12. Guida Rapida di Avvio (procedura in 4 passi con NotebookLM ed esempio)
+// 12. Guida Rapida di Avvio (procedura in 4 passi con NotebookLM)
 // ============================================================
 
 const NEXT_BLOCK_COMMAND = 'Procedi con il Blocco successivo';
@@ -2843,30 +2970,622 @@ function hideStartGuide() {
   if (guide) guide.style.display = 'none';
 }
 
-// Carica le schede dimostrative (Pinocchio, capitoli I-VII) da esempio/esempio_pinocchio.js:
-// un file script funziona anche aprendo l'app direttamente dal disco (file://)
-function loadExampleBook() {
-  if (RAW_FILES_CACHE.size > 0 && !confirm("L'esempio sostituisce le schede aperte in questo momento.\n\nOK = carica l'esempio\nAnnulla = mantieni le schede attuali")) {
-    return;
-  }
+// ============================================================
+// 13. Finestre di dialogo e avvisi
+// ============================================================
 
-  const apply = () => {
-    if (!Array.isArray(window.ESEMPIO_LIBRO) || window.ESEMPIO_LIBRO.length === 0) {
-      showNotificationToast("Impossibile caricare l'esempio.");
+let dialogFinish = null;
+
+// Finestra di dialogo dell'app al posto di alert/confirm del browser: ogni pulsante dice cosa succede.
+// Restituisce il "value" del pulsante scelto, oppure cancelValue (Esc o clic fuori dalla finestra)
+function showDialog({ title, message = '', buttons = [{ label: 'OK', value: true, style: 'primary' }], cancelValue = null, input = null }) {
+  return new Promise(resolve => {
+    const modal = document.getElementById('dialog-modal');
+    if (!modal) {
+      resolve(cancelValue);
       return;
     }
-    loadRawWorksheets(window.ESEMPIO_LIBRO.map(item => ({ ...item })));
-    saveBookToStorage(false);
-    showNotificationToast("✨ Esempio caricato: esplora le schede, l'anteprima e la guida docente. Il pulsante «?» riapre la guida.");
-  };
+    if (dialogFinish) dialogFinish(dialogFinish.cancelValue);
 
-  if (window.ESEMPIO_LIBRO) {
-    apply();
+    document.getElementById('dialog-title').textContent = title || '';
+    document.getElementById('dialog-message').textContent = message;
+    const inputEl = document.getElementById('dialog-input');
+    inputEl.style.display = input ? '' : 'none';
+    inputEl.value = input ? (input.value || '') : '';
+    inputEl.placeholder = input ? (input.placeholder || '') : '';
+
+    const finish = (value) => {
+      modal.classList.remove('open');
+      dialogFinish = null;
+      resolve(input ? (value === cancelValue ? null : { value, text: inputEl.value.trim() }) : value);
+    };
+    finish.cancelValue = cancelValue;
+    dialogFinish = finish;
+
+    const container = document.getElementById('dialog-buttons');
+    container.innerHTML = '';
+    let defaultBtn = null;
+    buttons.forEach(b => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `btn ${b.style === 'primary' ? 'btn-primary' : b.style === 'danger' ? 'btn-danger' : 'btn-secondary'}`;
+      btn.textContent = b.label;
+      btn.addEventListener('click', () => finish(b.value));
+      container.appendChild(btn);
+      if (b.style === 'primary' || (!defaultBtn && b.style === 'danger')) defaultBtn = btn;
+    });
+    inputEl.onkeydown = (e) => {
+      if (e.key === 'Enter' && defaultBtn) {
+        e.preventDefault();
+        defaultBtn.click();
+      }
+    };
+
+    modal.classList.add('open');
+    setTimeout(() => (input ? inputEl : (defaultBtn || container.lastChild))?.focus(), 30);
+  });
+}
+
+function cancelDialog() {
+  if (dialogFinish) dialogFinish(dialogFinish.cancelValue);
+}
+
+function isDialogOpen() {
+  return !!dialogFinish;
+}
+
+// Chiede un testo (es. il nome di una versione); restituisce la stringa o null se annullato
+async function askText({ title, message, value = '', placeholder = '', okLabel = 'OK' }) {
+  const result = await showDialog({
+    title,
+    message,
+    input: { value, placeholder },
+    buttons: [
+      { label: 'Annulla', value: false },
+      { label: okLabel, value: true, style: 'primary' }
+    ],
+    cancelValue: false
+  });
+  return result && result.value && result.text ? result.text : null;
+}
+
+// ============================================================
+// 14. Versioni salvate (combinazioni di esercizi per classe o per alunno)
+// ============================================================
+
+const VERSIONS_STORAGE_KEY = 'ANALISI_LIBRO_VERSIONS';
+let activeVersionName = '';
+
+function readAllVersions() {
+  try {
+    return JSON.parse(localStorage.getItem(VERSIONS_STORAGE_KEY) || '{}') || {};
+  } catch (_) {
+    return {};
+  }
+}
+
+// Le versioni sono legate al titolo del libro: { titolo: { nome versione: { file: [ID esercizi] } } }
+function getBookVersions() {
+  return readAllVersions()[globalBookTitle] || {};
+}
+
+function setBookVersions(versions) {
+  const all = readAllVersions();
+  if (Object.keys(versions).length > 0) {
+    all[globalBookTitle] = versions;
+  } else {
+    delete all[globalBookTitle];
+  }
+  try {
+    localStorage.setItem(VERSIONS_STORAGE_KEY, JSON.stringify(all));
+  } catch (err) {
+    console.warn("Impossibile salvare le versioni", err);
+  }
+}
+
+function renderVersionsBar() {
+  const select = document.getElementById('version-select');
+  if (!select) return;
+  const names = Object.keys(getBookVersions()).sort((a, b) => a.localeCompare(b, 'it'));
+  select.innerHTML = '';
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = names.length > 0 ? '— scegli una versione —' : '— nessuna versione salvata —';
+  select.appendChild(placeholder);
+  names.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    select.appendChild(opt);
+  });
+  if (!names.includes(activeVersionName)) activeVersionName = '';
+  select.value = activeVersionName;
+  select.disabled = names.length === 0;
+  const deleteBtn = document.getElementById('btn-delete-version');
+  if (deleteBtn) deleteBtn.style.display = activeVersionName ? '' : 'none';
+}
+
+// Una modifica manuale della selezione "stacca" la versione applicata
+function markSelectionChanged() {
+  if (activeVersionName) {
+    activeVersionName = '';
+    renderVersionsBar();
+  }
+}
+
+async function saveSelectionVersion() {
+  if (BLOCKS_DATA.length === 0) return;
+  const name = await askText({
+    title: '💾 Salva le scelte come versione',
+    message: 'Gli esercizi scelti in tutti i blocchi verranno salvati con questo nome, per poterli richiamare con un clic (per esempio per una classe o per un alunno).',
+    value: activeVersionName,
+    placeholder: 'es. 2B completa, Versione BES',
+    okLabel: '💾 Salva versione'
+  });
+  if (!name) return;
+
+  const versions = getBookVersions();
+  if (versions[name] && name !== activeVersionName) {
+    const replace = await showDialog({
+      title: 'Versione già esistente',
+      message: `Esiste già una versione chiamata «${name}». Vuoi sostituirla con le scelte attuali?`,
+      buttons: [
+        { label: 'Mantieni quella esistente', value: false },
+        { label: 'Sostituisci', value: true, style: 'danger' }
+      ],
+      cancelValue: false
+    });
+    if (!replace) return;
+  }
+
+  versions[name] = Object.fromEntries(BLOCKS_DATA.map(block => [block.filename, Array.from(getSelection(block))]));
+  setBookVersions(versions);
+  activeVersionName = name;
+  renderVersionsBar();
+  showNotificationToast(`📌 Versione «${name}» salvata: la ritrovi nel menu «Versione».`);
+}
+
+function applySelectionVersion(name) {
+  if (!name) {
+    activeVersionName = '';
+    renderVersionsBar();
     return;
   }
-  const script = document.createElement('script');
-  script.src = 'esempio/esempio_pinocchio.js';
-  script.onload = apply;
-  script.onerror = () => showNotificationToast("Impossibile caricare l'esempio.");
-  document.head.appendChild(script);
+  const version = getBookVersions()[name];
+  if (!version) return;
+
+  let blocksWithoutVersion = 0;
+  BLOCKS_DATA.forEach(block => {
+    const ids = version[block.filename];
+    if (Array.isArray(ids)) {
+      const known = new Set(block.exercises.map(ex => ex.id));
+      selectedState[block.filename] = new Set(ids.filter(id => known.has(id)));
+    } else {
+      selectedState[block.filename] = new Set(block.exercises.map(ex => ex.id));
+      blocksWithoutVersion++;
+    }
+  });
+
+  activeVersionName = name;
+  renderSidebar();
+  renderActiveBlock();
+  renderVersionsBar();
+  if (blocksWithoutVersion > 0) {
+    showNotificationToast(`📌 Versione «${name}» applicata. ${blocksWithoutVersion} blocchi aggiunti dopo il salvataggio della versione hanno tutti gli esercizi selezionati.`, { type: 'warning', persistent: true });
+  } else {
+    showNotificationToast(`📌 Versione «${name}» applicata a tutti i blocchi.`);
+  }
+}
+
+async function deleteSelectionVersion() {
+  const name = activeVersionName;
+  if (!name) return;
+  const confirmed = await showDialog({
+    title: 'Eliminare la versione?',
+    message: `La versione «${name}» verrà eliminata. Le scelte attuali degli esercizi non cambiano.`,
+    buttons: [
+      { label: 'Annulla', value: false },
+      { label: '🗑️ Elimina versione', value: true, style: 'danger' }
+    ],
+    cancelValue: false
+  });
+  if (!confirmed) return;
+  const versions = getBookVersions();
+  delete versions[name];
+  setBookVersions(versions);
+  activeVersionName = '';
+  renderVersionsBar();
+  showNotificationToast(`🗑️ Versione «${name}» eliminata.`);
+}
+
+// ============================================================
+// 15. Non perdere il lavoro: stato del salvataggio, file di lavoro, I miei libri, schede pronte
+// ============================================================
+
+const SAVE_INFO_STORAGE_KEY = 'ANALISI_LIBRO_SAVE_INFO';
+let saveInfo = { savedAt: null, fileSavedAt: null };
+
+function readSaveInfo() {
+  try {
+    const data = JSON.parse(localStorage.getItem(SAVE_INFO_STORAGE_KEY) || '{}');
+    saveInfo = { savedAt: data.savedAt || null, fileSavedAt: data.fileSavedAt || null };
+  } catch (_) {}
+}
+
+function writeSaveInfo() {
+  try {
+    localStorage.setItem(SAVE_INFO_STORAGE_KEY, JSON.stringify(saveInfo));
+  } catch (_) {}
+}
+
+function isLocallyEdited() {
+  try {
+    return localStorage.getItem(LOCAL_EDITS_STORAGE_KEY) === '1';
+  } catch (_) {
+    return false;
+  }
+}
+
+function formatSaveTime(timestamp) {
+  const date = new Date(timestamp);
+  const time = date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  if (date.toDateString() === new Date().toDateString()) return `oggi alle ${time}`;
+  return `il ${date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })} alle ${time}`;
+}
+
+// Riga sotto il titolo: quando è stato salvato nel browser e se manca un file di lavoro aggiornato
+function renderSaveStatus() {
+  const el = document.getElementById('app-save-status');
+  if (!el) return;
+  if (RAW_FILES_CACHE.size === 0 || !saveInfo.savedAt) {
+    el.textContent = '';
+    el.classList.remove('warn');
+    return;
+  }
+  const fileUpToDate = saveInfo.fileSavedAt && saveInfo.fileSavedAt >= saveInfo.savedAt;
+  el.textContent = `💾 Salvato in questo browser ${formatSaveTime(saveInfo.savedAt)}` +
+    (fileUpToDate ? ' · copia di sicurezza aggiornata' : ' · ultime modifiche non ancora salvate in un file');
+  el.classList.toggle('warn', !fileUpToDate);
+  el.title = fileUpToDate ? '' : "Usa «💾 Salva lavoro» per conservare una copia in un file: il salvataggio nel browser si perde se si cancellano i dati di navigazione o si cambia computer.";
+}
+
+// --- I miei libri: archivio dei libri nel browser (IndexedDB) ---
+
+const LIBRARY_DB_NAME = 'analisi-libro';
+const LIBRARY_STORE = 'books';
+let libraryDbPromise = null;
+
+function openLibraryDb() {
+  if (!libraryDbPromise) {
+    libraryDbPromise = new Promise(resolve => {
+      try {
+        const request = indexedDB.open(LIBRARY_DB_NAME, 1);
+        request.onupgradeneeded = () => request.result.createObjectStore(LIBRARY_STORE, { keyPath: 'id' });
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => resolve(null);
+      } catch (_) {
+        resolve(null);
+      }
+    });
+  }
+  return libraryDbPromise;
+}
+
+// Esegue un'operazione sull'archivio; restituisce null se l'archivio non è disponibile
+async function libraryRequest(mode, operation) {
+  const db = await openLibraryDb();
+  if (!db) return null;
+  return new Promise(resolve => {
+    try {
+      const tx = db.transaction(LIBRARY_STORE, mode);
+      const request = operation(tx.objectStore(LIBRARY_STORE));
+      tx.oncomplete = () => resolve(request ? request.result ?? true : true);
+      tx.onerror = () => resolve(null);
+      tx.onabort = () => resolve(null);
+    } catch (_) {
+      resolve(null);
+    }
+  });
+}
+
+function getBookId(title) {
+  return makeSafeId(String(title || DEFAULT_BOOK_TITLE).toLowerCase());
+}
+
+function libraryPutCurrentBook(locallyEdited) {
+  if (RAW_FILES_CACHE.size === 0) return;
+  libraryRequest('readwrite', store => store.put({
+    id: getBookId(globalBookTitle),
+    title: globalBookTitle,
+    worksheets: getAllRawWorksheets(),
+    blocks: BLOCKS_DATA.length,
+    savedAt: saveInfo.savedAt,
+    fileSavedAt: saveInfo.fileSavedAt,
+    locallyEdited: !!locallyEdited
+  }));
+}
+
+async function libraryListBooks() {
+  const books = await libraryRequest('readonly', store => store.getAll());
+  return Array.isArray(books) ? books.sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)) : null;
+}
+
+async function openLibraryModal(focusSection = null) {
+  const modal = document.getElementById('library-modal');
+  if (!modal) return;
+  modal.classList.add('open');
+  renderLibraryList();
+  renderRepositoryList();
+  if (focusSection === 'repository') {
+    setTimeout(() => document.getElementById('library-repository-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
+}
+
+function closeLibraryModal() {
+  const modal = document.getElementById('library-modal');
+  if (modal) modal.classList.remove('open');
+}
+
+function libraryMessage(container, text) {
+  container.innerHTML = '';
+  const p = document.createElement('p');
+  p.className = 'library-empty';
+  p.textContent = text;
+  container.appendChild(p);
+}
+
+function libraryItem(titleText, metaText, actions, isCurrent = false) {
+  const row = document.createElement('div');
+  row.className = `library-item${isCurrent ? ' current' : ''}`;
+  const info = document.createElement('div');
+  info.className = 'library-item-info';
+  const title = document.createElement('strong');
+  title.textContent = titleText;
+  const meta = document.createElement('span');
+  meta.textContent = metaText;
+  info.append(title, meta);
+  const buttons = document.createElement('div');
+  buttons.className = 'library-item-actions';
+  actions.forEach(a => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `btn btn-sm ${a.primary ? 'btn-primary' : 'btn-secondary'}`;
+    btn.textContent = a.label;
+    btn.disabled = !!a.disabled;
+    btn.addEventListener('click', a.onClick);
+    buttons.appendChild(btn);
+  });
+  row.append(info, buttons);
+  return row;
+}
+
+async function renderLibraryList() {
+  const container = document.getElementById('library-list');
+  if (!container) return;
+  libraryMessage(container, 'Caricamento…');
+  const books = await libraryListBooks();
+  if (books === null) {
+    libraryMessage(container, "Questo browser non permette di salvare i libri (succede ad esempio nella navigazione privata). Usa «💾 Salva lavoro» per conservare il lavoro in un file.");
+    return;
+  }
+  if (books.length === 0) {
+    libraryMessage(container, 'Nessun libro salvato: i libri compariranno qui appena crei o apri delle schede.');
+    return;
+  }
+  container.innerHTML = '';
+  const currentId = RAW_FILES_CACHE.size > 0 ? getBookId(globalBookTitle) : null;
+  books.forEach(book => {
+    const isCurrent = book.id === currentId;
+    const meta = `${book.blocks || 0} unità · salvato ${book.savedAt ? formatSaveTime(book.savedAt) : '—'}${isCurrent ? ' · aperto ora' : ''}`;
+    container.appendChild(libraryItem(book.title, meta, [
+      { label: isCurrent ? 'Aperto' : '📖 Apri', primary: !isCurrent, disabled: isCurrent, onClick: () => openLibraryBook(book.id) },
+      { label: '🗑️ Elimina', onClick: () => deleteLibraryBook(book) }
+    ], isCurrent));
+  });
+}
+
+async function openLibraryBook(id) {
+  const books = await libraryListBooks();
+  const book = books && books.find(b => b.id === id);
+  if (!book) return;
+  loadRawWorksheets(book.worksheets);
+  try {
+    localStorage.setItem(BOOK_STORAGE_KEY, JSON.stringify(getAllRawWorksheets()));
+    if (book.locallyEdited) {
+      localStorage.setItem(LOCAL_EDITS_STORAGE_KEY, '1');
+    } else {
+      localStorage.removeItem(LOCAL_EDITS_STORAGE_KEY);
+    }
+  } catch (_) {}
+  saveInfo = { savedAt: book.savedAt || Date.now(), fileSavedAt: book.fileSavedAt || null };
+  writeSaveInfo();
+  renderSaveStatus();
+  closeLibraryModal();
+  showNotificationToast(`📖 Aperto «${book.title}».`);
+}
+
+async function deleteLibraryBook(book) {
+  const confirmed = await showDialog({
+    title: 'Eliminare il libro dal browser?',
+    message: `«${book.title}» verrà eliminato dai libri salvati in questo browser. Le copie salvate in un file con «💾 Salva lavoro» non vengono toccate.`,
+    buttons: [
+      { label: 'Annulla', value: false },
+      { label: '🗑️ Elimina', value: true, style: 'danger' }
+    ],
+    cancelValue: false
+  });
+  if (!confirmed) return;
+  await libraryRequest('readwrite', store => store.delete(book.id));
+  renderLibraryList();
+  showNotificationToast(`🗑️ «${book.title}» eliminato dal browser.`);
+}
+
+// --- File di lavoro (.zip): un unico file per libro, con schede e versioni salvate ---
+
+async function saveWorkFile() {
+  if (RAW_FILES_CACHE.size === 0) {
+    showNotificationToast("⚠️ Non c'è ancora nessuna scheda da salvare.", { type: 'warning', persistent: true });
+    return;
+  }
+  if (typeof JSZip === 'undefined') {
+    showNotificationToast("❌ Salvataggio non disponibile: libreria JSZip non caricata.", { type: 'error', persistent: true });
+    return;
+  }
+
+  try {
+    const files = getAllRawWorksheets();
+    const zip = new JSZip();
+    const folder = zip.folder('schede_esercizi');
+    files.forEach(file => folder.file(file.filename, file.markdown));
+    folder.file('manifest.json', JSON.stringify(files.map(file => file.filename), null, 2) + '\n');
+    const versions = getBookVersions();
+    if (Object.keys(versions).length > 0) {
+      zip.file('versioni.json', JSON.stringify({ libro: globalBookTitle, versioni: versions }, null, 2) + '\n');
+    }
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const safeTitle = String(globalBookTitle).replace(/[^a-zA-Z0-9_\-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'Schede';
+    const fileName = `${safeTitle}_lavoro.zip`;
+    downloadBlob(blob, fileName);
+
+    saveInfo.fileSavedAt = Date.now();
+    if (!saveInfo.savedAt) saveInfo.savedAt = saveInfo.fileSavedAt;
+    writeSaveInfo();
+    libraryPutCurrentBook(isLocallyEdited());
+    renderSaveStatus();
+    showNotificationToast(`💾 Lavoro salvato nel file «${fileName}» (di solito nella cartella Download). Conservalo: potrai riaprirlo da «📚 I miei libri».`, { persistent: true });
+  } catch (err) {
+    console.error(err);
+    showNotificationToast("❌ Non è stato possibile creare il file di lavoro.", { type: 'error', persistent: true });
+  }
+}
+
+// Apre un file di lavoro .zip (anche le cartelle schede_esercizi/ compresse a mano)
+async function openWorkZip(fileOrBlob, sourceName) {
+  if (typeof JSZip === 'undefined') {
+    showNotificationToast("❌ Apertura non disponibile: libreria JSZip non caricata.", { type: 'error', persistent: true });
+    return false;
+  }
+  try {
+    const zip = await JSZip.loadAsync(fileOrBlob);
+    const entries = Object.values(zip.files).filter(entry => !entry.dir && !/(^|\/)__MACOSX\//.test(entry.name));
+    const mdEntries = entries
+      .filter(entry => /\.md$/i.test(entry.name))
+      .map(entry => ({ name: entry.name.split('/').pop(), entry }));
+    const chosen = selectWorksheetFiles(mdEntries);
+    if (chosen.length === 0) {
+      await showDialog({
+        title: 'Nessuna scheda trovata',
+        message: `Il file «${sourceName}» non contiene schede. Per salvare e riaprire il lavoro usa sempre il file creato con «💾 Salva lavoro».`
+      });
+      return false;
+    }
+
+    const worksheets = await Promise.all(chosen.map(async f => ({ filename: f.name, markdown: await f.entry.async('string') })));
+    worksheets.sort((a, b) => compareFilenames(a.filename, b.filename));
+    loadRawWorksheets(worksheets);
+
+    const versionsEntry = entries.find(entry => /(^|\/)versioni\.json$/i.test(entry.name));
+    if (versionsEntry) {
+      try {
+        const data = JSON.parse(await versionsEntry.async('string'));
+        if (data && data.versioni && typeof data.versioni === 'object') {
+          setBookVersions({ ...getBookVersions(), ...data.versioni });
+          renderVersionsBar();
+        }
+      } catch (_) {}
+    }
+
+    saveBookToStorage(false, { fromFile: true });
+    showNotificationToast(`📂 Aperto «${sourceName}»: ${BLOCKS_DATA.length} unità.`);
+    return true;
+  } catch (err) {
+    console.error(err);
+    showNotificationToast(`❌ Impossibile aprire «${sourceName}»: non sembra un file di lavoro valido.`, { type: 'error', persistent: true });
+    return false;
+  }
+}
+
+// --- Schede pronte: file .zip pubblicati nella cartella schede/ del repository ---
+
+const REPOSITORY_FOLDER = 'schede';
+let repositoryListCache = null;
+
+// Sito GitHub Pages: <utente>.github.io/<repository>/ oppure sito utente <utente>.github.io
+function detectGithubRepository() {
+  const hostMatch = window.location.hostname.toLowerCase().match(/^([a-z0-9-]+)\.github\.io$/);
+  if (!hostMatch) return null;
+  const firstSegment = window.location.pathname.split('/').filter(Boolean)[0];
+  const isProjectSite = firstSegment && !/\.[a-z0-9]+$/i.test(firstSegment);
+  return { owner: hostMatch[1], name: isProjectSite ? firstSegment : `${hostMatch[1]}.github.io` };
+}
+
+// Elenco degli zip: da schede/elenco.json se presente, altrimenti dall'API pubblica di GitHub
+async function fetchRepositoryZips() {
+  if (window.location.protocol === 'file:') return { files: [], unavailable: true };
+
+  try {
+    const res = await fetch(`${REPOSITORY_FOLDER}/elenco.json`, { cache: 'no-cache' });
+    if (res.ok) {
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : (data && Array.isArray(data.files) ? data.files : []);
+      return { files: list.filter(name => typeof name === 'string' && /\.zip$/i.test(name)).map(name => ({ name, size: null })) };
+    }
+  } catch (_) {}
+
+  const repo = detectGithubRepository();
+  if (!repo) return { files: [], unavailable: true };
+  try {
+    const res = await fetch(`https://api.github.com/repos/${repo.owner}/${repo.name}/contents/${REPOSITORY_FOLDER}`, {
+      headers: { Accept: 'application/vnd.github+json' }
+    });
+    if (res.status === 404) return { files: [] };
+    if (!res.ok) return { files: [], unavailable: true };
+    const items = await res.json();
+    return {
+      files: (Array.isArray(items) ? items : [])
+        .filter(item => item.type === 'file' && /\.zip$/i.test(item.name))
+        .map(item => ({ name: item.name, size: item.size }))
+    };
+  } catch (_) {
+    return { files: [], unavailable: true };
+  }
+}
+
+function prettyZipName(name) {
+  return name.replace(/\.zip$/i, '').replace(/_lavoro$/i, '').replace(/[_-]+/g, ' ').trim();
+}
+
+async function renderRepositoryList() {
+  const container = document.getElementById('repository-list');
+  if (!container) return;
+  libraryMessage(container, 'Caricamento…');
+  if (!repositoryListCache) repositoryListCache = await fetchRepositoryZips();
+  const { files, unavailable } = repositoryListCache;
+
+  if (files.length === 0) {
+    libraryMessage(container, unavailable
+      ? "L'elenco delle schede pronte è disponibile solo nella versione online del sito."
+      : "Non ci sono ancora schede pronte. Per pubblicarne una: salva il lavoro con «💾 Salva lavoro» e carica il file .zip nella cartella «schede» del repository.");
+    return;
+  }
+  container.innerHTML = '';
+  files.sort((a, b) => compareFilenames(a.name, b.name)).forEach(file => {
+    const meta = file.size ? `${file.name} · ${Math.max(1, Math.round(file.size / 1024))} KB` : file.name;
+    container.appendChild(libraryItem(prettyZipName(file.name), meta, [
+      { label: '📖 Apri', primary: true, onClick: () => openRepositoryZip(file.name) }
+    ]));
+  });
+}
+
+async function openRepositoryZip(name) {
+  try {
+    showNotificationToast(`⏳ Apertura di «${prettyZipName(name)}»...`);
+    const res = await fetch(`${REPOSITORY_FOLDER}/${encodeURIComponent(name)}`, { cache: 'no-cache' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    if (await openWorkZip(blob, name)) closeLibraryModal();
+  } catch (err) {
+    console.error(err);
+    showNotificationToast(`❌ Impossibile scaricare «${name}» dal sito. Riprova tra qualche minuto.`, { type: 'error', persistent: true });
+  }
 }
