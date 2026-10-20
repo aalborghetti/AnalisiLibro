@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { state, RAW_FILES_CACHE } from '../js/state.js';
 import { getSelectedExercises, rebuildBlocksFromCache } from '../js/book.js';
-import { selectEssentialBes, selectAll, toggleExercise } from '../js/ui.js';
+import { deselectAll, selectEssentialBes, selectAll, toggleExercise } from '../js/ui.js';
 import { applySelectionVersion, getBookVersions, setBookVersions } from '../js/versions.js';
 import { openWorkZip, saveWorkFile, detectGithubRepository, prettyZipName } from '../js/storage.js';
 import { getOutputBlocks, validateOutput, buildOutputHtml } from '../js/output.js';
@@ -36,7 +36,7 @@ test('file di lavoro: identificativo del libro e versioni sopravvivono al salvat
   await selectEssentialBes('block');
   const counts = state.BLOCKS_DATA.map(b => getSelectedExercises(b).length);
   setBookVersions({ 'Versione BES': Object.fromEntries(state.BLOCKS_DATA.map(b => [b.filename, getSelectedExercises(b).map(e => e.id)])) });
-  selectAll();
+  await selectAll('block');
   applySelectionVersion('Versione BES');
   assert.deepEqual(state.BLOCKS_DATA.map(b => getSelectedExercises(b).length), counts, 'versione riapplicata');
   toggleExercise(state.BLOCKS_DATA[0].exercises[0].id);
@@ -54,6 +54,26 @@ test('file di lavoro: identificativo del libro e versioni sopravvivono al salvat
   assert.equal(await openWorkZip(workFile, 'lavoro.zip'), true);
   assert.equal(state.currentBookId, bookId, 'stesso identificativo dopo la riapertura');
   assert.ok(getBookVersions()['Versione BES'], 'versioni ripristinate');
+});
+
+test('Seleziona / Deseleziona tutti e BES: solo il blocco aperto oppure tutti i blocchi', async () => {
+  resetBrowserStorage();
+  const name = zipNames[0];
+  await openWorkZip(fs.readFileSync(path.join(ROOT, 'schede', name)), name);
+  const counts = () => state.BLOCKS_DATA.map(b => getSelectedExercises(b).length);
+  const totals = state.BLOCKS_DATA.map(b => b.exercises.length);
+
+  await deselectAll('book');
+  assert.ok(counts().every(n => n === 0), 'nessun esercizio in tutti i blocchi');
+  await selectAll('block');
+  assert.deepEqual(counts(), [totals[0], ...totals.slice(1).map(() => 0)], 'solo il blocco aperto');
+  await selectAll('book');
+  assert.deepEqual(counts(), totals, 'tutti i blocchi');
+  await selectEssentialBes('book');
+  assert.ok(counts().every((n, i) => n > 0 && n < totals[i]), 'BES in tutti i blocchi');
+  await deselectAll('block');
+  assert.equal(counts()[0], 0);
+  assert.ok(counts().slice(1).every(n => n > 0), 'gli altri blocchi non cambiano');
 });
 
 test('cambiare il titolo in dati_libro.md non cambia identificativo né versioni', async () => {

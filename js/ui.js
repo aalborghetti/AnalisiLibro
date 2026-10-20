@@ -194,54 +194,66 @@ export function toggleExercise(exerciseId) {
   }
 }
 
-export function selectAll() {
-  const block = state.BLOCKS_DATA.find(b => b.id === state.currentBlockId);
-  if (!block) return;
-  selectedState[block.filename] = new Set(block.exercises.map(e => e.id));
-  markSelectionChanged();
-  renderActiveBlock();
-  renderSidebar();
+// Le azioni rapide di selezione valgono per il blocco aperto o per tutto il libro: con più blocchi
+// lo chiedono al docente (se "scope" è già indicato non viene fatta nessuna domanda)
+async function askSelectionScope({ title, message, scope, defaultScope = 'book' }) {
+  if (scope) return scope;
+  if (state.BLOCKS_DATA.length <= 1) return 'block';
+  return showDialog({
+    title,
+    message: `${message} A quali blocchi vuoi applicarlo?`,
+    buttons: [
+      { label: 'Annulla', value: null },
+      { label: 'Solo questo blocco', value: 'block', style: defaultScope === 'block' ? 'primary' : 'secondary' },
+      { label: 'Tutti i blocchi', value: 'book', style: defaultScope === 'book' ? 'primary' : 'secondary' }
+    ],
+    cancelValue: null
+  });
 }
 
-export function deselectAll() {
-  const block = state.BLOCKS_DATA.find(b => b.id === state.currentBlockId);
-  if (!block) return;
-  selectedState[block.filename] = new Set();
-  markSelectionChanged();
-  renderActiveBlock();
-  renderSidebar();
-}
-
-// Filtro rapido per alunni con BES / verifiche semplificate (Comprensione, V/F e Lessico).
-// Con più blocchi chiede se applicarla solo al blocco aperto o a tutto il libro ("scope" la indica già)
-export async function selectEssentialBes(scope = null) {
-  const block = state.BLOCKS_DATA.find(b => b.id === state.currentBlockId);
-  if (!block) return;
-  if (!scope) {
-    scope = state.BLOCKS_DATA.length > 1
-      ? await showDialog({
-        title: '🎯 Selezione Essenziale (BES)',
-        message: 'Vengono scelti solo le domande aperte, il Vero/Falso e il Laboratorio Lessicale. A quali blocchi vuoi applicarla?',
-        buttons: [
-          { label: 'Annulla', value: null },
-          { label: 'Solo questo blocco', value: 'block' },
-          { label: 'Tutti i blocchi', value: 'book', style: 'primary' }
-        ],
-        cancelValue: null
-      })
-      : 'block';
-    if (!scope) return;
-  }
-  const essentialTypes = new Set(['comprensione', 'vf', 'lessico']);
-  const targets = scope === 'book' ? state.BLOCKS_DATA : [block];
-  targets.forEach(target => {
-    selectedState[target.filename] = new Set(
-      target.exercises.filter(e => essentialTypes.has(e.type)).map(e => e.id)
-    );
+// Applica la scelta degli esercizi ("pickIds" restituisce gli ID da selezionare) ai blocchi indicati
+function applySelectionToBlocks(scope, pickIds) {
+  const current = state.BLOCKS_DATA.find(b => b.id === state.currentBlockId);
+  const targets = scope === 'book' ? state.BLOCKS_DATA : [current];
+  targets.forEach(block => {
+    selectedState[block.filename] = new Set(pickIds(block));
   });
   markSelectionChanged();
   renderActiveBlock();
   renderSidebar();
+}
+
+export async function selectAll(scope = null) {
+  if (!state.BLOCKS_DATA.some(b => b.id === state.currentBlockId)) return;
+  scope = await askSelectionScope({ title: '✅ Seleziona tutti', message: 'Vengono scelti tutti gli esercizi.', scope });
+  if (!scope) return;
+  applySelectionToBlocks(scope, block => block.exercises.map(e => e.id));
+  if (state.BLOCKS_DATA.length > 1) {
+    showNotificationToast(scope === 'book' ? '✅ Tutti gli esercizi scelti in tutti i blocchi.' : '✅ Tutti gli esercizi scelti in questo blocco.');
+  }
+}
+
+export async function deselectAll(scope = null) {
+  if (!state.BLOCKS_DATA.some(b => b.id === state.currentBlockId)) return;
+  scope = await askSelectionScope({ title: '⬜ Deseleziona tutti', message: 'Vengono tolti tutti gli esercizi.', scope, defaultScope: 'block' });
+  if (!scope) return;
+  applySelectionToBlocks(scope, () => []);
+  if (state.BLOCKS_DATA.length > 1) {
+    showNotificationToast(scope === 'book' ? '⬜ Nessun esercizio scelto in tutti i blocchi.' : '⬜ Nessun esercizio scelto in questo blocco.');
+  }
+}
+
+// Filtro rapido per alunni con BES / verifiche semplificate (Comprensione, V/F e Lessico)
+export async function selectEssentialBes(scope = null) {
+  if (!state.BLOCKS_DATA.some(b => b.id === state.currentBlockId)) return;
+  scope = await askSelectionScope({
+    title: '🎯 Selezione Essenziale (BES)',
+    message: 'Vengono scelti solo le domande aperte, il Vero/Falso e il Laboratorio Lessicale.',
+    scope
+  });
+  if (!scope) return;
+  const essentialTypes = new Set(['comprensione', 'vf', 'lessico']);
+  applySelectionToBlocks(scope, block => block.exercises.filter(e => essentialTypes.has(e.type)).map(e => e.id));
   showNotificationToast(scope === 'book'
     ? "🎯 Selezione Essenziale (BES) applicata a tutti i blocchi: Comprensione, V/F e Lessico."
     : "🎯 Selezione Essenziale (BES) applicata a questo blocco: Comprensione, V/F e Lessico.");

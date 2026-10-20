@@ -20,7 +20,7 @@ Questo strumento ti aiuta a preparare schede didattiche di lettura per la scuola
 ## 2. Scegliere gli esercizi
 
 - Nella colonna di sinistra trovi i **blocchi** del libro: clicca su un blocco per vederne gli esercizi.
-- Spunta gli esercizi da includere nella scheda per gli studenti: le scelte vengono ricordate anche riaprendo l'app. **🎯 Selezione Essenziale (BES)** sceglie in un clic le domande aperte, il Vero/Falso e il lessico, nel blocco aperto o in tutto il libro.
+- Spunta gli esercizi da includere nella scheda per gli studenti: le scelte vengono ricordate anche riaprendo l'app. **🎯 Selezione Essenziale (BES)** sceglie in un clic le domande aperte, il Vero/Falso e il lessico; **Seleziona Tutti** e **Deseleziona Tutti** scelgono o tolgono tutti gli esercizi. Per tutti e tre l'app chiede se applicare la scelta solo al blocco aperto o a tutto il libro.
 - **📌 Versioni:** dopo aver scelto gli esercizi puoi salvarli con un nome (per esempio «2B completa» o «Versione BES») con **💾 Salva le scelte come versione**. La versione vale per tutti i blocchi e si richiama dal menu *Versione*.
 - Per correggere o arricchire una scheda usa **✏️ Modifica il testo di questa scheda**, poi **✅ Salva modifiche**.
 
