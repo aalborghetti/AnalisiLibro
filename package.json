@@ -1,0 +1,9 @@
+{
+  "name": "analisi-libro",
+  "private": true,
+  "description": "Piattaforma didattica per schede di lettura: app web statica, senza dipendenze",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/"
+  }
+}

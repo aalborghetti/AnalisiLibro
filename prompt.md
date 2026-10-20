@@ -14,7 +14,7 @@ Per garantire la massima qualità ed evitare tagli dovuti ai limiti di lunghezza
 ---
 
 ### DELIMITAZIONE DEI FILE (OBBLIGATORIA)
-L'applicazione web separa automaticamente i file incollati grazie a due righe speciali, da scrivere ciascuna da sola su una riga:
+Ogni file viene salvato e importato nell'applicazione web con il nome indicato da due righe speciali, da scrivere ciascuna da sola su una riga:
 - **Prima di ogni file:** `[[FILE: nome_del_file.md]]` (es. `[[FILE: dati_libro.md]]`, `[[FILE: blocco_01_esercizi.md]]`).
 - **Alla fine di ogni file:** `[[FINE]]`.
 - Numera i blocchi sempre con due cifre (`blocco_01`, `blocco_02`, … `blocco_10`).
@@ -50,6 +50,7 @@ Nel Piano elenca tutti i blocchi del romanzo e assegna a ciascuno l'attività sp
 ### FASE 2: Template Obbligatorio per Ciascuna Scheda (`blocco_XX_esercizi.md`)
 
 **Regole di compilazione** (da applicare, non da trascrivere nella scheda):
+- **Titolo dell'unità** (riga `### Unità Didattica …`): solo il titolo del primo e dell'ultimo capitolo del blocco, in corsivo e separati da un trattino lungo (es. `*La chiesa vecchia* – *Il secondo biglietto*`). Non scrivere i numeri dei capitoli e non elencare i capitoli intermedi.
 - **Sezione 1.A:** esattamente 5 domande numerate da 1 a 5, ciascuna con la stessa struttura della domanda 1 e seguita da 3 righe di scrittura.
 - **Sezione 1.B:** esattamente 5 affermazioni (2 vere e 3 false, oppure 3 vere e 2 false).
 - **Sezione 2:** esattamente 2 domande numerate (1 e 2), ciascuna seguita da 3 righe di scrittura.

@@ -28,8 +28,8 @@
       <input type="file" id="folder-input" webkitdirectory directory multiple style="display: none;" onchange="handleFolderSelect(this.files); this.value = '';">
       <input type="file" id="files-input" multiple accept=".zip,.md" style="display: none;" onchange="handleFolderSelect(this.files); this.value = '';">
 
-      <button class="btn btn-secondary header-btn" onclick="openAiImportModal()" title="Incolla la risposta di NotebookLM: le schede vengono riconosciute e aggiunte automaticamente">
-        📥 Incolla risposta AI
+      <button class="btn btn-secondary header-btn" onclick="document.getElementById('files-input').click()" title="Importa i file delle schede salvati dalle risposte dell'AI (.md) o un file di lavoro (.zip)">
+        📂 Importa schede
       </button>
       <button class="btn btn-secondary header-btn" onclick="openLibraryModal()" title="Apri un libro salvato nel browser, un file di lavoro (.zip) o una cartella di schede">
         📚 I miei libri
@@ -104,10 +104,10 @@
 
           <li class="start-step">
             <span class="start-step-num" aria-hidden="true">4</span>
-            <h4>Incolla qui la risposta</h4>
-            <p class="start-step-text">Quando l'AI ha finito, copia la sua risposta e incollala qui. Poi chiedi all'AI il blocco successivo e ripeti, un blocco alla volta.</p>
+            <h4>Salva e importa le schede</h4>
+            <p class="start-step-text">Salva ogni file prodotto dall'AI come file .md, con il nome indicato nella riga [[FILE: …]] (es. blocco_01_esercizi.md), e importalo qui. Poi chiedi all'AI il blocco successivo e ripeti, un blocco alla volta.</p>
             <div class="start-step-actions">
-              <button type="button" class="btn btn-primary btn-sm" onclick="openAiImportModal()">📥 Incolla la risposta</button>
+              <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('files-input').click()">📂 Importa i file delle schede</button>
               <button type="button" class="btn btn-secondary btn-sm" onclick="copyNextBlockCommand()" title="Copia la frase da inviare all'AI per ottenere il blocco successivo">📋 Copia «Procedi con il Blocco successivo»</button>
             </div>
           </li>
@@ -140,7 +140,7 @@
             Le schede didattiche vengono importate automaticamente all'avvio.
           </p>
           <div style="margin-top: 0.85rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
-            <button class="btn btn-secondary" style="font-size: 0.82rem; padding: 0.4rem 0.8rem; background: #ffffff; border-color: #cbd5e1; display: inline-flex; align-items: center; gap: 0.4rem;" onclick="openMdEditor(currentBlockId)">
+            <button class="btn btn-secondary" style="font-size: 0.82rem; padding: 0.4rem 0.8rem; background: #ffffff; border-color: #cbd5e1; display: inline-flex; align-items: center; gap: 0.4rem;" onclick="openMdEditor()">
               ✏️ Modifica il testo di questa scheda
             </button>
           </div>
@@ -188,9 +188,9 @@
 
   <!-- Modal for Student Sheet Preview -->
   <div class="modal-overlay" id="preview-modal">
-    <div class="modal-window">
+    <div class="modal-window" role="dialog" aria-modal="true" aria-labelledby="preview-modal-title">
       <div class="modal-header" style="flex-wrap: wrap; gap: 0.5rem;">
-        <div class="modal-title">Anteprima Scheda Studente (Solo Esercizi Selezionati)</div>
+        <div class="modal-title" id="preview-modal-title">Anteprima Scheda Studente (Solo Esercizi Selezionati)</div>
         <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
           <button type="button" class="btn btn-secondary btn-dsa-toggle" id="btn-dsa-toggle" onclick="toggleDsaMode()" title="Attiva o disattiva il formato ad Alta Leggibilità per alunni con DSA (font sans-serif maggiorato, zero corsivi, interlinea e righe di scrittura ampliate)">
             🔤 Alta Leggibilità (DSA): OFF
@@ -205,7 +205,7 @@
         <button class="btn btn-secondary" onclick="closePrintPreview()">← Torna indietro</button>
         <span class="print-hint">💡 Per il PDF scegli «Salva come PDF» come stampante e disattiva «Intestazioni e piè di pagina».</span>
         <div style="display: flex; gap: 0.5rem; align-items: center;">
-          <button class="btn btn-secondary" onclick="exportOutputDocx(currentOutput)" title="Scarica questo documento in formato Word / Google Documenti (.docx)">📄 Scarica Word</button>
+          <button class="btn btn-secondary" onclick="exportCurrentPreviewDocx()" title="Scarica questo documento in formato Word / Google Documenti (.docx)">📄 Scarica Word</button>
           <button class="btn btn-primary" onclick="window.print()">🖨️ Stampa / Salva PDF</button>
         </div>
       </div>
@@ -214,12 +214,12 @@
 
   <!-- Modal for Markdown File Editor -->
   <div class="modal-overlay" id="editor-modal">
-    <div class="modal-window editor-window">
+    <div class="modal-window editor-window" role="dialog" aria-modal="true" aria-labelledby="editor-modal-title">
       
       <!-- Editor Header -->
       <div class="modal-header editor-header">
         <div class="editor-header-left">
-          <div class="modal-title" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <div class="modal-title" id="editor-modal-title" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
             <span>✏️ Modifica il testo delle schede</span>
             <span id="editor-dirty-badge" class="dirty-badge" style="display: none;">● Modifiche non salvate</span>
           </div>
@@ -265,7 +265,7 @@
       <div class="modal-body editor-body" id="editor-body">
         <!-- Editor Pane -->
         <div class="editor-pane" id="editor-pane">
-          <textarea id="editor-textarea" spellcheck="false" placeholder="Scrivi o modifica qui il testo della scheda..." oninput="handleEditorInput()"></textarea>
+          <textarea id="editor-textarea" aria-label="Testo della scheda" spellcheck="false" placeholder="Scrivi o modifica qui il testo della scheda..." oninput="handleEditorInput()"></textarea>
         </div>
 
         <!-- Live Preview Pane -->
@@ -300,9 +300,9 @@
 
   <!-- Modal for README / Help Instructions -->
   <div class="modal-overlay" id="help-modal">
-    <div class="modal-window help-window">
+    <div class="modal-window help-window" role="dialog" aria-modal="true" aria-labelledby="help-modal-title">
       <div class="modal-header">
-        <div class="modal-title" style="display: flex; align-items: center; gap: 0.5rem;">
+        <div class="modal-title" id="help-modal-title" style="display: flex; align-items: center; gap: 0.5rem;">
           <span style="font-size: 1.2rem;">📖</span>
           <span>Guida e domande frequenti</span>
         </div>
@@ -325,9 +325,9 @@
 
   <!-- Modal for Prompt & Didactic Context Viewer/Downloader -->
   <div class="modal-overlay" id="prompt-context-modal">
-    <div class="modal-window help-window">
+    <div class="modal-window help-window" role="dialog" aria-modal="true" aria-labelledby="prompt-context-modal-title">
       <div class="modal-header" style="flex-wrap: wrap; gap: 0.75rem;">
-        <div class="modal-title" style="display: flex; align-items: center; gap: 0.5rem;">
+        <div class="modal-title" id="prompt-context-modal-title" style="display: flex; align-items: center; gap: 0.5rem;">
           <span style="font-size: 1.2rem;">🤖</span>
           <span>Istruzioni per l'AI</span>
         </div>
@@ -374,36 +374,6 @@
         <div style="display: flex; gap: 0.5rem; align-items: center;">
           <button type="button" class="btn btn-primary" onclick="closePromptContextModal()">Chiudi</button>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal for AI Response Import -->
-  <div class="modal-overlay" id="ai-import-modal">
-    <div class="modal-window help-window">
-      <div class="modal-header">
-        <div class="modal-title" style="display: flex; align-items: center; gap: 0.5rem;">
-          <span style="font-size: 1.2rem;">📥</span>
-          <span>Incolla la risposta dell'AI</span>
-        </div>
-        <button class="btn btn-secondary" onclick="closeAiImportModal()">✕ Chiudi</button>
-      </div>
-      <div class="modal-body help-body" style="display: flex; flex-direction: column; gap: 0.75rem;">
-        <p style="font-size: 0.9rem; color: #475569; line-height: 1.55;">
-          Incolla qui la risposta di NotebookLM così com'è, anche con il testo prima e dopo le schede: i dati del libro e le schede
-          dei blocchi vengono riconosciuti e aggiunti automaticamente. Puoi incollare anche più risposte insieme.
-        </p>
-        <details class="tech-details">
-          <summary>Dettagli tecnici</summary>
-          I file vengono separati dalle righe <code>[[FILE: nome.md]]</code> e <code>[[FINE]]</code> richieste dalle istruzioni;
-          in loro assenza, il testo viene diviso sui titoli <code># Dati del Libro</code> e <code># SCHEDA DIDATTICA</code>.
-          Una scheda già presente con lo stesso nome viene sostituita, dopo conferma.
-        </details>
-        <textarea id="ai-import-textarea" spellcheck="false" placeholder="[[FILE: dati_libro.md]]&#10;# Dati del Libro&#10;...&#10;&#10;[[FILE: blocco_01_esercizi.md]]&#10;# SCHEDA DIDATTICA DI LETTURA E COMPRENSIONE&#10;..." style="width: 100%; min-height: 320px; flex: 1; font-family: monospace; font-size: 0.85rem; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; resize: vertical;"></textarea>
-      </div>
-      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
-        <button type="button" class="btn btn-secondary" onclick="closeAiImportModal()">Annulla</button>
-        <button type="button" class="btn btn-primary" onclick="importAiResponse()">📥 Aggiungi le schede</button>
       </div>
     </div>
   </div>
@@ -515,7 +485,17 @@
   <!-- Libreria per compressione OOXML DOCX Client-Side -->
   <script src="jszip.min.js"></script>
 
-  <!-- Logica Applicativa Client-Side -->
-  <script src="app.js"></script>
+  <!-- Aperta dal disco (file://) l'app non può caricare i suoi moduli: indica come usarla -->
+  <script>
+    if (window.location.protocol === 'file:') {
+      document.body.insertAdjacentHTML('afterbegin',
+        '<div class="file-protocol-warning" role="alert"><strong>Questa pagina va aperta dal sito, non dal computer.</strong> ' +
+        'Usa la versione online (ad esempio https://aalborghetti.github.io/AnalisiLibro/) oppure, per provarla in locale, ' +
+        'avvia un piccolo server web nella cartella del progetto (es. <code>python -m http.server</code>) e apri http://localhost:8000.</div>');
+    }
+  </script>
+
+  <!-- Logica dell'applicazione (moduli JavaScript nella cartella js/) -->
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

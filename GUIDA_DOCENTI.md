@@ -9,7 +9,7 @@ Questo strumento ti aiuta a preparare schede didattiche di lettura per la scuola
 1. **Apri NotebookLM** (serve un account Google) e crea un nuovo taccuino.
 2. **Aggiungi due fonti al taccuino:** il file del libro (EPUB, PDF o TXT) e il file delle *linee guida didattiche*, che scarichi dal passo 2 della guida rapida.
 3. **Copia le istruzioni** con il pulsante del passo 3, incollale nella chat del taccuino e invia.
-4. **Incolla la risposta nell'app:** quando NotebookLM ha finito, copia tutta la risposta e incollala con **📥 Incolla risposta AI**. Le schede vengono riconosciute e aggiunte da sole.
+4. **Salva e importa le schede:** NotebookLM indica il nome di ogni file nella riga *[[FILE: …]]* (per esempio *blocco_01_esercizi.md*). Salva ogni file con quel nome e con estensione `.md`, poi importalo con **📂 Importa schede** oppure trascinalo nella pagina. Se il libro è già aperto, scegli **➕ Aggiungi al libro aperto**. Se salvi la prima risposta (dati del libro e Blocco 1) in un unico file, l'app la divide da sola.
 5. **Chiedi il blocco successivo:** scrivi a NotebookLM *«Procedi con il Blocco successivo»* (puoi copiare la frase dal passo 4) e ripeti il passo 4 per ogni blocco, fino alla fine del libro.
 
 > [!TIP]
@@ -20,7 +20,7 @@ Questo strumento ti aiuta a preparare schede didattiche di lettura per la scuola
 ## 2. Scegliere gli esercizi
 
 - Nella colonna di sinistra trovi i **blocchi** del libro: clicca su un blocco per vederne gli esercizi.
-- Spunta gli esercizi da includere nella scheda per gli studenti. **🎯 Selezione Essenziale (BES)** sceglie in un clic le domande aperte, il Vero/Falso e il lessico.
+- Spunta gli esercizi da includere nella scheda per gli studenti: le scelte vengono ricordate anche riaprendo l'app. **🎯 Selezione Essenziale (BES)** sceglie in un clic le domande aperte, il Vero/Falso e il lessico, nel blocco aperto o in tutto il libro.
 - **📌 Versioni:** dopo aver scelto gli esercizi puoi salvarli con un nome (per esempio «2B completa» o «Versione BES») con **💾 Salva le scelte come versione**. La versione vale per tutti i blocchi e si richiama dal menu *Versione*.
 - Per correggere o arricchire una scheda usa **✏️ Modifica il testo di questa scheda**, poi **✅ Salva modifiche**.
 
@@ -40,8 +40,8 @@ La casella **🔤 Alta leggibilità (DSA)** usa un carattere più grande, toglie
 
 ## 4. Non perdere il lavoro
 
-- L'app salva automaticamente il lavoro **in questo browser**: sotto il titolo vedi quando è stato salvato l'ultima volta.
-- Il salvataggio nel browser si perde se si cancellano i dati di navigazione, si usa la navigazione privata o si cambia computer. Per questo, alla fine di ogni sessione, premi **💾 Salva lavoro**: scarichi un unico file `.zip` con tutte le schede e le versioni salvate. Conservalo (per esempio su Google Drive).
+- L'app salva automaticamente **in questo browser** le schede e gli esercizi scelti: sotto il titolo vedi quando è stato salvato l'ultima volta.
+- Il salvataggio nel browser si perde se si cancellano i dati di navigazione, si usa la navigazione privata o si cambia computer. Per questo, alla fine di ogni sessione, premi **💾 Salva lavoro**: scarichi un unico file `.zip` con tutte le schede, gli esercizi scelti e le versioni salvate. Conservalo (per esempio su Google Drive).
 - **📚 I miei libri** elenca i libri salvati nel browser, le **schede pronte** pubblicate sul sito e ti permette di riaprire un file di lavoro `.zip` dal computer. Puoi anche trascinare il file `.zip` direttamente nella pagina.
 
 ---
@@ -49,10 +49,13 @@ La casella **🔤 Alta leggibilità (DSA)** usa un carattere più grande, toglie
 ## 5. Domande frequenti
 
 ### La risposta dell'AI si è interrotta a metà o una scheda è incompleta
-Le risposte molto lunghe a volte vengono troncate. Scrivi a NotebookLM *«La scheda del Blocco 3 si è interrotta: rigenerala completa»*, poi incolla la nuova risposta con **📥 Incolla risposta AI**: l'app ti chiederà se sostituire la scheda incompleta.
+Le risposte molto lunghe a volte vengono troncate. Scrivi a NotebookLM *«La scheda del Blocco 3 si è interrotta: rigenerala completa»*, salva di nuovo il file e importalo con **📂 Importa schede**: l'app ti chiederà se sostituire la scheda incompleta.
 
-### Ho incollato la risposta ma non è comparsa nessuna scheda
-Controlla di aver copiato **tutta** la risposta, dall'inizio alla fine. Se il problema continua, prova a copiare la risposta con il pulsante di copia di NotebookLM invece di selezionare il testo con il mouse.
+### Ho importato un file ma non è comparsa nessuna scheda
+Controlla che il file contenga **tutta** la risposta, dall'inizio alla fine, e che sia salvato con estensione `.md` (per esempio *blocco_02_esercizi.md*, non *blocco_02_esercizi.md.txt*). Il nome del file deve essere quello indicato dall'AI nella riga *[[FILE: …]]*.
+
+### Ho importato un blocco e sono spariti gli altri?
+No: se il libro è aperto, scegli **➕ Aggiungi al libro aperto** e il nuovo blocco si aggiunge a quelli già presenti. Se per errore hai scelto **Apri come nuovo libro**, il libro precedente resta comunque in **📚 I miei libri**.
 
 ### Come ottengo un PDF?
 Scegli **🖨️ Stampa o scarica** → *Stampa o PDF*. Nella finestra di stampa scegli **«Salva come PDF»** come stampante e disattiva **«Intestazioni e piè di pagina»**, così il PDF non riporta l'indirizzo del sito.
