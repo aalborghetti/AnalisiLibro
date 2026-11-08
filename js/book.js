@@ -194,7 +194,7 @@ export async function fetchServerWorksheets() {
 }
 
 // File di documentazione del repository da non trattare come schede
-export const NON_WORKSHEET_FILES = new Set(['readme.md', 'prompt.md', 'contesto_didattico.md', 'security.md', 'changelog.md', 'license.md']);
+export const NON_WORKSHEET_FILES = new Set(['readme.md', 'prompt.md', 'contesto_didattico.md', 'esempio_scheda_pinocchio.md', 'security.md', 'changelog.md', 'license.md']);
 
 // Filtra la selezione: se ci sono file "blocco_XX..." tiene solo quelli e dati_libro.md,
 // altrimenti tutti i .md tranne la documentazione; scarta i nomi duplicati (sottocartelle)

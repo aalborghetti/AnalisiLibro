@@ -1,4 +1,4 @@
-import { sampleFromPrompt } from './browser-env.js';
+import { sampleFromPrompt, readText } from './browser-env.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseWorksheetMarkdown, joinSelectedExercises } from '../js/markdown.js';
@@ -78,6 +78,18 @@ test('la sezione Vero o Falso separata ha la propria intestazione Sezione 2', ()
   assert.equal(block.exercises[1].type, 'vf');
   assert.match(block.exercises[1].title, /Vero o Falso/i);
   assert.ok(joinSelectedExercises([block.exercises[1]], 'md').startsWith('## 2. Vero o Falso'));
+});
+
+test('la scheda di esempio di Pinocchio rispetta le 6 sezioni e la struttura ufficiale', () => {
+  const text = readText('esempio_scheda_pinocchio.md');
+  const files = splitMarkedFiles(text);
+  assert.equal(files.length, 1);
+  const block = parseWorksheetMarkdown(files[0].filename, files[0].markdown);
+  assert.equal(block.blockNumber, 1);
+  assert.equal(block.exercises.length, 6);
+  assert.deepEqual(block.exercises.map(e => e.type), ['comprensione', 'vf', 'analisi', 'scrittura', 'lessico', 'speciale']);
+  assert.ok(block.welcomeNote.length > 0);
+  assert.ok(block.teacherGuideMd.length > 0);
 });
 
 test('ordinamento naturale e filtro dei file di una cartella', () => {

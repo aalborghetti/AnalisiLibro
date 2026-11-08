@@ -1,4 +1,4 @@
-Applica rigorosamente la metodologia pedagogica definita nella fonte `contesto_didattico.md` al testo integrale del romanzo caricato come fonte del taccuino.
+Applica rigorosamente la metodologia pedagogica definita nella fonte `contesto_didattico.md` (incluso l'esempio ufficiale di riferimento della Sezione 6) al testo integrale del romanzo caricato come fonte del taccuino.
 
 Il tuo compito è generare il materiale didattico in formato **Markdown puro**, rispettando al millimetro i marcatori strutturali richiesti dal parser dell'applicazione web di stampa.
 
@@ -59,6 +59,7 @@ Nel Piano elenca tutti i blocchi del romanzo e assegna a ciascuno l'attività sp
 - **Sezione 6:** l'attività speciale assegnata a questo blocco nel Piano delle Unità Didattiche.
 - **Nessuna intestazione studente:** non inserire campi o righe per nome, cognome, classe o data (es. «Nome e Cognome: _____»), né linee per la firma: tutti gli esercizi vengono svolti sul quaderno.
 - **Nessuna dicitura o piè di pagina:** non inserire mai diciture, frasi fisse o note a piè di pagina né alla fine delle sezioni né alla fine della scheda (es. vietato inserire «Scuola Secondaria di Primo Grado — Scheda di Lavoro Individuale / Coppie» o espressioni analoghe).
+- **Modello di riferimento ("Gold Standard"):** segui fedelmente la struttura, il registro e il formato dell'esempio de *Le avventure di Pinocchio* riportato nella Sezione 6 di `contesto_didattico.md` (e nel file `esempio_scheda_pinocchio.md`).
 - Sostituisci tutti i segnaposto tra parentesi quadre (tranne il riquadro `[SPAZIO PER IL TUO DISEGNO / RILIEVO GRAFICO]`). Nelle tabelle non usare caselle con parentesi `[ ]`: lascia le celle vuote (`| | |`).
 
 Genera ciascuna scheda seguendo **esattamente** questi titoli, segnaposto e livelli di intestazione (`#`, `##`, `###`):
@@ -79,7 +80,11 @@ Genera ciascuna scheda seguendo **esattamente** questi titoli, segnaposto e live
 
 *Rispondi alle domande sul tuo quaderno in modo completo, motivando con riferimenti precisi al testo.*
 
-1. **[Titolo breve della domanda]:** [Testo della domanda inferenziale/causa-effetto]
+1. **[Titolo breve della domanda 1]:** [Testo della prima domanda inferenziale/causa-effetto]
+2. **[Titolo breve della domanda 2]:** [Testo della seconda domanda inferenziale/causa-effetto]
+3. **[Titolo breve della domanda 3]:** [Testo della terza domanda inferenziale/causa-effetto]
+4. **[Titolo breve della domanda 4]:** [Testo della quarta domanda inferenziale/causa-effetto]
+5. **[Titolo breve della domanda 5]:** [Testo della quinta domanda inferenziale/causa-effetto]
 
 ---
 
@@ -101,7 +106,8 @@ Genera ciascuna scheda seguendo **esattamente** questi titoli, segnaposto e live
 
 *Rifletti sulle scelte e sulle emozioni dei protagonisti e rispondi sul quaderno.*
 
-1. **[Titolo breve dell'analisi]:** [Domanda approfondita su conflitti interiori, scelte etiche o evoluzione del personaggio]
+1. **[Titolo breve dell'analisi 1]:** [Domanda approfondita su conflitti interiori, scelte etiche o evoluzione del personaggio]
+2. **[Titolo breve dell'analisi 2]:** [Seconda domanda di riflessione su motivazioni o relazioni tra personaggi]
 
 ---
 
