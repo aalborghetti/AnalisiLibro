@@ -52,6 +52,9 @@ test('impaginazione per quaderno e supporto retrocompatibile righe di scrittura 
   assert.ok(!block.exercises[0].contentHtml.includes('write-lines'), 'nessuna riga di scrittura per quaderno');
   const lexicon = block.exercises.find(e => e.type === 'lessico').contentHtml;
   assert.equal((lexicon.match(/<td class="col-match">/g) || []).length, 5);
+  assert.ok(lexicon.includes('class="vf-table table-matching"'), 'tabella lessico con cornice e stile vf-table');
+  const vfHtml = block.exercises.find(e => e.type === 'vf').contentHtml;
+  assert.ok(vfHtml.includes('class="vf-table"'), 'tabella vero o falso con classe vf-table');
 
   // Retrocompatibilità: schede pregresse con righe di scrittura e [ ] continuano a essere riconosciute
   const legacySample = parseWorksheetMarkdown('legacy.md',
@@ -62,11 +65,19 @@ test('impaginazione per quaderno e supporto retrocompatibile righe di scrittura 
   assert.equal((legacyLex.match(/matching-box/g) || []).length, 2);
 });
 
-test('il titolo di sezione comune compare una sola volta', () => {
-  const block = parseWorksheetMarkdown('blocco_01_esercizi.md', splitMarkedFiles(response)[1].markdown);
-  const both = joinSelectedExercises(block.exercises.slice(0, 2), 'md');
+test('il titolo di sezione comune compare una sola volta per sezioni divise in sottosezioni A/B', () => {
+  const legacy = parseWorksheetMarkdown('legacy_ab.md',
+    `## 1. Comprensione del Testo\n\n### A. Domande a risposta aperta\n\n1. **Domanda 1:** Testo\n\n### B. Vero o Falso\n\n| V | F |\n|---|---|\n| | |`);
+  const both = joinSelectedExercises(legacy.exercises.slice(0, 2), 'md');
   assert.equal((both.match(/## 1\. Comprensione del Testo/g) || []).length, 1);
-  assert.ok(joinSelectedExercises([block.exercises[1]], 'md').startsWith('## 1. Comprensione del Testo'));
+  assert.ok(joinSelectedExercises([legacy.exercises[1]], 'md').startsWith('## 1. Comprensione del Testo'));
+});
+
+test('la sezione Vero o Falso separata ha la propria intestazione Sezione 2', () => {
+  const block = parseWorksheetMarkdown('blocco_01_esercizi.md', splitMarkedFiles(response)[1].markdown);
+  assert.equal(block.exercises[1].type, 'vf');
+  assert.match(block.exercises[1].title, /Vero o Falso/i);
+  assert.ok(joinSelectedExercises([block.exercises[1]], 'md').startsWith('## 2. Vero o Falso'));
 });
 
 test('ordinamento naturale e filtro dei file di una cartella', () => {

@@ -137,12 +137,11 @@ L'applicazione web [`index.html`](index.html) è **100% client-side** e va usata
    - **`🎯 Selezione Essenziale (BES)`:** Pulsante rapido nella barra di selezione che attiva automaticamente le sole sezioni di *Comprensione (domande aperte)*, *Vero/Falso* e *Laboratorio Lessicale* per verifiche o schede a carico cognitivo ridotto. Come **`Seleziona Tutti`** e **`Deseleziona Tutti`**, con più blocchi chiede se applicare la scelta solo al blocco aperto o a tutto il libro. Ogni esercizio resta poi selezionabile o deselezionabile singolarmente.
    - **`🔤 Alta Leggibilità (DSA)`:** casella della finestra **`🖨️ Stampa o scarica`** (e pulsante nell'anteprima) che trasforma l'impaginazione secondo i criteri di alta leggibilità (font sans-serif `Plus Jakarta Sans` maggiorato a `12.5pt`, rimozione totale del corsivo, interlinea e spaziatura espanse, righe di scrittura più alte per alunni con disgrafia). Vale sia per stampa/PDF sia per Word (Verdana 12,5 pt, senza corsivi, interlinea 1,5) e viene ricordata tra una sessione e l'altra.
 
-4. **Editor con anteprima (`✏️ Modifica il testo di questa scheda`):**
-   - Modifica qualsiasi scheda del libro aperto o i dati generali in `dati_libro.md`.
-   - Anteprima affiancata con rendering tipografico A4 in tempo reale e impaginazione per quaderno.
-   - Barra di formattazione rapida per testo (grassetto, corsivo, titoli, sottotitoli e citazioni).
-   - **`✅ Salva modifiche`** (Ctrl+S), **`⬇️ Scarica questa scheda`** e **`↩️ Annulla tutte le modifiche`**; chiudendo o cambiando scheda con modifiche in sospeso l'app chiede se salvarle.
-   - Le selezioni degli esercizi vengono conservate quando si salvano modifiche; gli esercizi nuovi risultano selezionati.
+4. **Anteprima della scheda (`👁️ Anteprima della scheda`):**
+   - Visualizza l'anteprima tipografica completa di qualsiasi blocco del libro o di `dati_libro.md`.
+   - Rendering tipografico A4 con impaginazione per quaderno e visualizzazione della guida docente con soluzioni.
+   - Possibilità di scaricare il singolo file `.md` originale tramite **`⬇️ Scarica file .md`**.
+   - Per modifiche approfondite al testo, l'esportazione in formato **Word / Google Documenti** consente l'editing rapido e familiare per i docenti.
 
 5. **Stampa o scarica (`🖨️ Stampa o scarica`):** un'unica finestra con tre scelte e un riepilogo di ciò che verrà prodotto:
    - **Che cosa:** l'unità corrente oppure tutto il libro (ogni unità su una nuova pagina; le unità senza esercizi scelti o senza guida vengono saltate).

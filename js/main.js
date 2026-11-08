@@ -7,7 +7,7 @@ import { fetchServerWorksheets, getFilesFromDataTransferItems, handleFolderSelec
 import { deselectAll, selectAll, selectEssentialBes, showEmptyState, showNotificationToast } from './ui.js';
 import { cancelDialog, initModalAccessibility, isDialogOpen, showDialog } from './dialogs.js';
 import { closeExportDialog, closePrintPreview, exportCurrentPreviewDocx, loadExportPrefs, openExportDialog, runExport, setDsaMode, setExportChoice, toggleDsaMode } from './output.js';
-import { applyEditorChanges, closeMdEditor, downloadCurrentEditorFile, handleEditorFileSelectChange, handleEditorInput, insertEditorSnippet, openMdEditor, revertEditorCurrentFile, setEditorViewMode } from './editor.js';
+import { closeMdEditor, downloadCurrentEditorFile, handleEditorFileSelectChange, openMdEditor } from './editor.js';
 import { closeHelpModal, closePromptContextModal, copyCodeSnippet, copyCurrentPromptContextText, copyNextBlockCommand, copyStartInstructions, downloadBothPromptAndContext, downloadCurrentPromptContextFile, downloadStartContext, ensurePromptAndContextLoaded, hideStartGuide, openHelpModal, openPromptContextModal, openStartGuide, switchPromptContextTab } from './help.js';
 import { closeLibraryModal, openLibraryModal, readBookFromStorage, readSaveInfo, renderSaveStatus, saveBookToStorage, saveWorkFile } from './storage.js';
 
@@ -44,42 +44,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  const editorModal = document.getElementById('editor-modal');
-  if (editorModal) {
-    editorModal.addEventListener('click', (e) => {
-      if (e.target === editorModal) {
-        closeMdEditor();
-      }
-    });
-  }
-
-  const editorTextarea = document.getElementById('editor-textarea');
-  if (editorTextarea) {
-    editorTextarea.addEventListener('keydown', (e) => {
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        const start = editorTextarea.selectionStart;
-        const end = editorTextarea.selectionEnd;
-        const val = editorTextarea.value;
-        editorTextarea.value = val.substring(0, start) + "  " + val.substring(end);
-        editorTextarea.selectionStart = editorTextarea.selectionEnd = start + 2;
-        handleEditorInput();
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-        applyEditorChanges();
-      }
-    });
-  }
-
-  const helpModal = document.getElementById('help-modal');
-  if (helpModal) {
-    helpModal.addEventListener('click', (e) => {
-      if (e.target === helpModal) {
-        closeHelpModal();
-      }
-    });
-  }
-
   // Esc: chiude prima la finestra di dialogo, poi una sola finestra alla volta (la più in primo piano)
   const escapeClosers = [
     ['export-modal', closeExportDialog],
@@ -107,15 +71,21 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Clic fuori dalla finestra = chiudi (per la finestra di dialogo = annulla)
-  [['export-modal', closeExportDialog], ['library-modal', closeLibraryModal], ['prompt-context-modal', closePromptContextModal], ['help-modal', closeHelpModal], ['dialog-modal', cancelDialog]]
-    .forEach(([id, close]) => {
-      const modal = document.getElementById(id);
-      if (modal) {
-        modal.addEventListener('click', (e) => {
-          if (e.target === modal) close();
-        });
-      }
-    });
+  [
+    ['export-modal', closeExportDialog],
+    ['library-modal', closeLibraryModal],
+    ['prompt-context-modal', closePromptContextModal],
+    ['help-modal', closeHelpModal],
+    ['editor-modal', closeMdEditor],
+    ['dialog-modal', cancelDialog]
+  ].forEach(([id, close]) => {
+    const modal = document.getElementById(id);
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) close();
+      });
+    }
+  });
 
   initModalAccessibility();
 
@@ -145,7 +115,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (keepLocal) {
       loadRawWorksheets(stored.worksheets, serverWorksheets, { bookId: stored.bookId });
       renderSaveStatus();
-      showNotificationToast("↩️ Le tue modifiche sono state ripristinate. «Annulla tutte le modifiche» nell'editor riporta una scheda alla versione del sito.");
+      showNotificationToast("↩️ Le tue modifiche sono state ripristinate.");
     } else {
       loadRawWorksheets(serverWorksheets);
       saveBookToStorage(false, { fromFile: true });
@@ -171,7 +141,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 // Funzioni richiamate dagli attributi onclick/onchange di index.html e dall'HTML generato
 Object.assign(window, {
-  applyEditorChanges,
   closeExportDialog,
   closeHelpModal,
   closeLibraryModal,
@@ -189,23 +158,19 @@ Object.assign(window, {
   downloadStartContext,
   exportCurrentPreviewDocx,
   handleEditorFileSelectChange,
-  handleEditorInput,
   handleFolderSelect,
   hideStartGuide,
-  insertEditorSnippet,
   openExportDialog,
   openHelpModal,
   openLibraryModal,
   openMdEditor,
   openPromptContextModal,
   openStartGuide,
-  revertEditorCurrentFile,
   runExport,
   saveWorkFile,
   selectAll,
   selectEssentialBes,
   setDsaMode,
-  setEditorViewMode,
   setExportChoice,
   switchPromptContextTab,
   toggleDsaMode

@@ -379,7 +379,6 @@ export async function exportOutputDocx(output, opts = { dsa: state.isDsaMode }) 
     md = `# GUIDA E SOLUZIONI PER IL DOCENTE\n` + buildTeacherDocxMarkdown(blocks[0], 2);
   } else {
     md = `# SCHEDA DIDATTICA DI LETTURA E COMPRENSIONE\n` + buildStudentDocxMarkdown(blocks[0], 2);
-    md += `\n\n---\n*Scuola Secondaria di Primo Grado — Scheda di Lavoro Individuale o di Coppia*\n`;
   }
 
   const fileName = isBook

@@ -115,10 +115,6 @@ export function buildStudentBlockHtml(block) {
     <div class="doc-content">
       ${exercisesHtml}
     </div>
-
-    <div style="margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid #ccc; font-size: 0.8rem; color: #777; text-align: center; font-family: sans-serif;">
-      Scuola Secondaria di Primo Grado — Scheda di Lavoro Individuale / Coppie
-    </div>
   `;
 }
 

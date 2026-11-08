@@ -705,7 +705,7 @@ header {
    MARKDOWN EDITOR MODAL STYLES
    ============================================================ */
 .modal-window.editor-window {
-  max-width: 1240px;
+  max-width: 960px;
   width: 95vw;
   height: 92vh;
 }
@@ -752,24 +752,6 @@ header {
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
-.dirty-badge {
-  background: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 0.15rem 0.5rem;
-  border-radius: 9999px;
-  display: inline-flex;
-  align-items: center;
-  animation: pulseDirty 2s infinite;
-}
-
-@keyframes pulseDirty {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.75; }
-}
-
 .editor-header-right {
   display: flex;
   align-items: center;
@@ -807,81 +789,14 @@ header {
   font-weight: 700;
 }
 
-.editor-quickbar {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  background: #f1f5f9;
-  border-bottom: 1px solid var(--border);
-  padding: 0.35rem 1rem;
-  flex-wrap: wrap;
-}
-
-.quickbar-group {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  flex-wrap: wrap;
-}
-
-.quick-btn {
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 5px;
-  padding: 0.22rem 0.55rem;
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: #334155;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  display: inline-flex;
-  align-items: center;
-  line-height: 1.2;
-}
-
-.quick-btn:hover {
-  background: #e2e8f0;
-  color: #0f172a;
-  border-color: #94a3b8;
-}
-
 .editor-body {
   display: flex !important;
-  flex-direction: row !important;
+  flex-direction: column !important;
   flex: 1 !important;
   overflow: hidden !important;
   padding: 0 !important;
-  background: #ffffff !important;
+  background: #f8fafc !important;
   position: relative !important;
-}
-
-.editor-pane {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  border-right: 1px solid var(--border);
-  background: #ffffff;
-  position: relative;
-  min-width: 0;
-}
-
-#editor-textarea {
-  flex: 1;
-  width: 100%;
-  height: 100%;
-  padding: 1.25rem 1.5rem;
-  border: none;
-  resize: none;
-  outline: none;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
-  font-size: 0.92rem;
-  line-height: 1.6;
-  color: #1e293b;
-  background: #ffffff;
-  white-space: pre-wrap;
-  tab-size: 2;
-  box-sizing: border-box;
 }
 
 .editor-preview-pane {
@@ -917,12 +832,6 @@ header {
   gap: 1rem;
 }
 
-.editor-stats {
-  font-size: 0.8rem;
-  color: #64748b;
-  font-family: monospace;
-}
-
 .editor-footer-right {
   display: flex;
   align-items: center;
@@ -933,36 +842,6 @@ header {
 .btn-sm {
   font-size: 0.78rem !important;
   padding: 0.35rem 0.65rem !important;
-}
-
-/* Modalità visualizzazione Editor */
-.editor-window.mode-editor .editor-pane {
-  flex: 1 !important;
-  display: flex !important;
-  border-right: none !important;
-}
-
-.editor-window.mode-editor .editor-preview-pane {
-  display: none !important;
-}
-
-.editor-window.mode-preview .editor-pane {
-  display: none !important;
-}
-
-.editor-window.mode-preview .editor-preview-pane {
-  flex: 1 !important;
-  display: block !important;
-}
-
-.editor-window.mode-split .editor-pane {
-  flex: 1 !important;
-  display: flex !important;
-}
-
-.editor-window.mode-split .editor-preview-pane {
-  flex: 1 !important;
-  display: block !important;
 }
 
 /* ============================================================
@@ -1151,27 +1030,41 @@ header {
 }
 
 /* Tabelle Generali e Laboratorio Lessico */
-.vf-table {
+.vf-table,
+.table-matching {
   width: 100%;
   border-collapse: collapse;
   margin: 1.25rem 0;
   font-size: 0.92rem;
+}
+
+.vf-table {
   table-layout: auto;
 }
 
-.vf-table th, .vf-table td {
+.vf-table th, .vf-table td,
+.table-matching th, .table-matching td {
   border: 1px solid #cbd5e1;
   padding: 0.65rem 0.85rem;
   text-align: left;
   vertical-align: middle;
 }
 
-.vf-table th {
+.vf-table th,
+.table-matching th {
   background: #f1f5f9;
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-weight: 700;
   color: #1e293b;
   text-align: left;
+}
+
+.vf-table:not(.table-matching) th:nth-child(2),
+.vf-table:not(.table-matching) td:nth-child(2),
+.vf-table:not(.table-matching) th:nth-child(3),
+.vf-table:not(.table-matching) td:nth-child(3) {
+  text-align: center;
+  width: 60px;
 }
 
 /* Tabella Matching / Laboratorio di Lessico (Forzatura larghezze colonne) */
@@ -1527,31 +1420,6 @@ header {
     max-width: 180px !important;
   }
 
-  .editor-quickbar {
-    overflow-x: auto !important;
-    flex-wrap: nowrap !important;
-    padding: 0.35rem 0.6rem !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
-
-  .editor-quickbar .quick-btn {
-    flex-shrink: 0 !important;
-  }
-
-  .editor-window.mode-split .editor-pane {
-    flex: 1 !important;
-    display: flex !important;
-    border-right: none !important;
-  }
-  .editor-window.mode-split .editor-preview-pane {
-    display: none !important;
-  }
-
-  #editor-textarea {
-    padding: 0.75rem !important;
-    font-size: 0.88rem !important;
-  }
-
   .editor-preview-pane {
     padding: 1rem 0.75rem !important;
   }
@@ -1851,8 +1719,8 @@ body.is-printing .modal-body {
     break-inside: avoid !important;
   }
 
-  .table-matching {
-    table-layout: fixed !important;
+  .table-matching,
+  .vf-table {
     width: 100% !important;
     border-collapse: collapse !important;
     page-break-inside: avoid !important;
@@ -1860,19 +1728,34 @@ body.is-printing .modal-body {
     margin: 1rem 0 !important;
   }
 
+  .table-matching {
+    table-layout: fixed !important;
+  }
+
   .table-matching th,
-  .table-matching td {
+  .table-matching td,
+  .vf-table th,
+  .vf-table td {
     border: 1px solid #1e293b !important;
     padding: 6px 8px !important;
     font-size: 10pt !important;
     line-height: 1.35 !important;
   }
 
-  .table-matching th {
+  .table-matching th,
+  .vf-table th {
     background-color: #f1f5f9 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     font-weight: 700 !important;
+  }
+
+  .vf-table:not(.table-matching) th:nth-child(2),
+  .vf-table:not(.table-matching) td:nth-child(2),
+  .vf-table:not(.table-matching) th:nth-child(3),
+  .vf-table:not(.table-matching) td:nth-child(3) {
+    text-align: center !important;
+    width: 45px !important;
   }
 
   .table-matching th.col-term,
@@ -1902,12 +1785,6 @@ body.is-printing .modal-body {
     border-radius: 4px !important;
     background: #fff !important;
     white-space: nowrap !important;
-  }
-
-  .vf-table {
-    page-break-inside: auto !important;
-    break-inside: auto !important;
-    width: 100% !important;
   }
 }
 

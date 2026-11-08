@@ -21,7 +21,7 @@ Questo strumento ti aiuta a preparare schede didattiche di lettura per la scuola
 
 - Nella colonna di sinistra trovi i **blocchi** del libro: clicca su un blocco per vederne gli esercizi.
 - Spunta gli esercizi da includere nella scheda per gli studenti: le scelte vengono ricordate anche riaprendo l'app. **🎯 Selezione Essenziale (BES)** sceglie in un clic le domande aperte, il Vero/Falso e il lessico; **Seleziona Tutti** e **Deseleziona Tutti** scelgono o tolgono tutti gli esercizi. Per tutti e tre l'app chiede se applicare la scelta solo al blocco aperto o a tutto il libro.
-- Per correggere o arricchire una scheda usa **✏️ Modifica il testo di questa scheda**, poi **✅ Salva modifiche**.
+- Per consultare l'intera scheda (esercizi e guida per il docente con soluzioni) usa **👁️ Anteprima della scheda**; puoi anche scaricare il file Markdown originale con **⬇️ Scarica file .md**.
 
 ---
 
@@ -65,8 +65,8 @@ Scarica la scheda in formato **Word / Google Documenti**, caricala su Google Dri
 ### Ho cambiato computer: come ritrovo il mio lavoro?
 Apri il file `.zip` salvato con **💾 Salva lavoro** da **📚 I miei libri** → *Apri un file di lavoro*, oppure trascinalo nella pagina. Il salvataggio automatico nel browser, invece, resta sul computer dove hai lavorato.
 
-### Posso cambiare una domanda o aggiungere un esercizio?
-Sì: **✏️ Modifica il testo di questa scheda** apre il testo della scheda con l'anteprima affiancata. Le righe di trattini bassi diventano righe di scrittura, le tabelle restano tabelle. Se sbagli, **↩️ Annulla tutte le modifiche** riporta la scheda com'era.
+### Posso visualizzare l'anteprima completa di una scheda?
+Sì: **👁️ Anteprima della scheda** apre la scheda completa con tutti gli esercizi e la guida riservata al docente (con sinossi e soluzioni), consentendo anche di scaricare il file Markdown singolo. Per personalizzare il testo degli esercizi, puoi esportare la scheda in formato **Word / Google Documenti** con **🖨️ Stampa o scarica**.
 
 ### Che differenza c'è tra BES e DSA nello strumento?
 **🎯 Selezione Essenziale (BES)** riduce il numero di esercizi (carico cognitivo minore). **🔤 Alta leggibilità (DSA)** cambia solo l'aspetto grafico (carattere, spaziature, niente corsivo). Si possono usare insieme.

@@ -114,7 +114,6 @@
           <div class="start-guide-option">
             <span>Hai già salvato il lavoro? Trascina il file in questa pagina oppure</span>
             <button type="button" class="btn btn-secondary btn-sm" onclick="openLibraryModal()">📚 Apri i miei libri</button>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="openMdEditor()">✏️ Scrivi una scheda da zero</button>
           </div>
           <div class="start-guide-option">
             <button type="button" class="btn btn-secondary btn-sm" onclick="openPromptContextModal()">🤖 Istruzioni complete per l'AI</button>
@@ -134,8 +133,8 @@
             Le schede didattiche vengono caricate automaticamente all'avvio.
           </p>
           <div style="margin-top: 0.85rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
-            <button class="btn btn-secondary" style="font-size: 0.82rem; padding: 0.4rem 0.8rem; background: #ffffff; border-color: #cbd5e1; display: inline-flex; align-items: center; gap: 0.4rem;" onclick="openMdEditor()">
-              ✏️ Modifica il testo di questa scheda
+            <button class="btn btn-secondary" style="font-size: 0.82rem; padding: 0.4rem 0.8rem; background: #ffffff; border-color: #cbd5e1; display: inline-flex; align-items: center; gap: 0.4rem;" onclick="openMdEditor()" title="Visualizza l'anteprima completa di questa scheda e della guida docente">
+              👁️ Anteprima della scheda
             </button>
           </div>
         </div>
@@ -197,16 +196,15 @@
     </div>
   </div>
 
-  <!-- Modal for Markdown File Editor -->
+  <!-- Modal for Worksheet Preview (Sola visualizzazione anteprima) -->
   <div class="modal-overlay" id="editor-modal">
     <div class="modal-window editor-window" role="dialog" aria-modal="true" aria-labelledby="editor-modal-title">
       
-      <!-- Editor Header -->
+      <!-- Preview Header -->
       <div class="modal-header editor-header">
         <div class="editor-header-left">
           <div class="modal-title" id="editor-modal-title" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-            <span>✏️ Modifica il testo delle schede</span>
-            <span id="editor-dirty-badge" class="dirty-badge" style="display: none;">● Modifiche non salvate</span>
+            <span>👁️ Anteprima della scheda</span>
           </div>
           <div class="editor-file-picker">
             <label for="editor-file-select" style="font-size: 0.8rem; font-weight: 600; color: #475569;">Scheda:</label>
@@ -217,35 +215,12 @@
         </div>
 
         <div class="editor-header-right">
-          <!-- View switcher tabs -->
-          <div class="editor-view-switcher">
-            <button type="button" class="view-btn active" id="btn-view-editor" onclick="setEditorViewMode('editor')">📝 Testo</button>
-            <button type="button" class="view-btn" id="btn-view-split" onclick="setEditorViewMode('split')">🌗 Affiancati</button>
-            <button type="button" class="view-btn" id="btn-view-preview" onclick="setEditorViewMode('preview')">👁️ Anteprima</button>
-          </div>
           <button class="btn btn-secondary" onclick="closeMdEditor()">✕ Chiudi</button>
         </div>
       </div>
 
-      <!-- Quick Formatting Helper Toolbar -->
-      <div class="editor-quickbar">
-        <div class="quickbar-group">
-          <button type="button" class="quick-btn" onclick="insertEditorSnippet('bold')" title="Grassetto (**testo**)"><strong>B</strong></button>
-          <button type="button" class="quick-btn" onclick="insertEditorSnippet('italic')" title="Corsivo (*testo*)"><em>I</em></button>
-          <button type="button" class="quick-btn" onclick="insertEditorSnippet('h2')" title="Titolo di sezione (##)">Titolo</button>
-          <button type="button" class="quick-btn" onclick="insertEditorSnippet('h3')" title="Sottotitolo (###)">Sottotitolo</button>
-          <button type="button" class="quick-btn" onclick="insertEditorSnippet('quote')" title="Citazione (&gt; Citazione)">&ldquo;&rdquo;</button>
-        </div>
-      </div>
-
-      <!-- Main Editor Body (Split or Single) -->
+      <!-- Main Preview Body -->
       <div class="modal-body editor-body" id="editor-body">
-        <!-- Editor Pane -->
-        <div class="editor-pane" id="editor-pane">
-          <textarea id="editor-textarea" aria-label="Testo della scheda" spellcheck="false" placeholder="Scrivi o modifica qui il testo della scheda..." oninput="handleEditorInput()"></textarea>
-        </div>
-
-        <!-- Live Preview Pane -->
         <div class="editor-preview-pane" id="editor-preview-pane">
           <div class="preview-inner" id="editor-preview-content">
             <!-- Rendered live markdown preview -->
@@ -253,22 +228,16 @@
         </div>
       </div>
 
-      <!-- Editor Footer -->
+      <!-- Preview Footer -->
       <div class="modal-footer editor-footer">
         <div class="editor-footer-left">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="revertEditorCurrentFile()" title="Riporta questa scheda com'era quando è stata caricata">
-            ↩️ Annulla tutte le modifiche
+          <button type="button" class="btn btn-secondary btn-sm" onclick="downloadCurrentEditorFile()" title="Scarica solo questa scheda come file di testo (.md)">
+            ⬇️ Scarica file .md
           </button>
-          <span id="editor-stats" class="editor-stats">0 caratteri</span>
         </div>
 
         <div class="editor-footer-right">
-          <button type="button" class="btn btn-secondary" onclick="downloadCurrentEditorFile()" title="Scarica solo questa scheda come file di testo (.md)">
-            ⬇️ Scarica questa scheda
-          </button>
-          <button type="button" class="btn btn-primary" onclick="applyEditorChanges()" title="Salva le modifiche nell'app e aggiorna l'anteprima (Ctrl+S)">
-            ✅ Salva modifiche
-          </button>
+          <button type="button" class="btn btn-primary" onclick="closeMdEditor()">Chiudi</button>
         </div>
       </div>
 

@@ -303,7 +303,7 @@ export function markdownToHtml(md, wrapperClass = 'doc-section') {
       }
     });
 
-    const tableClass = isMatchingTable ? 'table-matching' : 'vf-table';
+    const tableClass = isMatchingTable ? 'vf-table table-matching' : 'vf-table';
     return `<div class="table-responsive"><table class="${tableClass}">${theadHtml}<tbody>${tbodyHtml}</tbody></table></div>`;
   });
 

@@ -34,13 +34,16 @@ Prima di elaborare qualsiasi scheda didattica, analizza il testo secondo questi 
 
 ### E. Selezione Lessicale (Laboratorio in Tabella)
 - Scegli 5 vocaboli o locuzioni d'autore realmente presenti nei capitoli del blocco: privilegia parole ricercate, metaforiche, settoriali o desuete ma ricche di valore espressivo.
-- **Formato obbligatorio a tabella:** impagina sempre il laboratorio come **tabella a 3 colonne** (`Termine o Modo di Dire`, `Abbinamento`, `Significato Contestuale`). Nella colonna centrale di abbinamento lascia la cella vuota, senza parentesi `[ ]` o simboli (è sufficiente la cornice della tabella).
+- **Formato obbligatorio a tabella:** impagina sempre il laboratorio esclusivamente come **tabella a 3 colonne** (`Termine o Modo di Dire`, `Abbinamento`, `Significato Contestuale`), senza domande a risposta aperta o sottosezioni. Nella colonna centrale di abbinamento lascia la cella vuota, senza parentesi `[ ]` o simboli (è sufficiente la cornice della tabella).
 - Formula definizioni contestuali chiare e **mescola sempre l'ordine delle definizioni (A-E)** rispetto all'ordine dei termini (1-5), così che la soluzione non sia mai sequenziale (vieta rigorosamente sequenze banali come 1-A, 2-B, 3-C, 4-D, 5-E). Gli studenti svolgono l'abbinamento sul quaderno.
+
+### F. Nessun Piè di Pagina o Dicitura Fissa
+- Non inserire mai diciture fisse o piè di pagina alla fine delle sezioni o in calce alla scheda (es. vietato inserire «Scuola Secondaria di Primo Grado — Scheda di Lavoro Individuale / Coppie» o diciture simili). La scheda deve contenere solo le 6 sezioni di attività e la successiva Guida Docente.
 
 ---
 
 ## 4. Repertorio delle Attività Speciali "Fuori dagli Schemi" (Rotazione Obbligatoria)
-Per la Sezione 5 di ogni scheda, progetta un'attività laboratoriale sempre diversa tra un blocco e l'altro, scegliendo a rotazione dal seguente catalogo metodologico.
+Per la Sezione 6 di ogni scheda, progetta un'attività laboratoriale sempre diversa tra un blocco e l'altro, scegliendo a rotazione dal seguente catalogo metodologico.
 
 **Regola di rotazione:** assegna le attività a tutti i blocchi fin dal Piano delle Unità Didattiche (Fase 1), così che la rotazione resti coerente anche quando i blocchi vengono generati in risposte successive. Usa tutte le sei tipologie prima di ripeterne una e non assegnare mai la stessa tipologia a due blocchi consecutivi (con più di sei blocchi, ricomincia il ciclo variando il taglio dell'attività).
 
