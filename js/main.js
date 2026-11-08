@@ -9,7 +9,6 @@ import { cancelDialog, initModalAccessibility, isDialogOpen, showDialog } from '
 import { closeExportDialog, closePrintPreview, exportCurrentPreviewDocx, loadExportPrefs, openExportDialog, runExport, setDsaMode, setExportChoice, toggleDsaMode } from './output.js';
 import { applyEditorChanges, closeMdEditor, downloadCurrentEditorFile, handleEditorFileSelectChange, handleEditorInput, insertEditorSnippet, openMdEditor, revertEditorCurrentFile, setEditorViewMode } from './editor.js';
 import { closeHelpModal, closePromptContextModal, copyCodeSnippet, copyCurrentPromptContextText, copyNextBlockCommand, copyStartInstructions, downloadBothPromptAndContext, downloadCurrentPromptContextFile, downloadStartContext, ensurePromptAndContextLoaded, hideStartGuide, openHelpModal, openPromptContextModal, openStartGuide, switchPromptContextTab } from './help.js';
-import { applySelectionVersion, deleteSelectionVersion, saveSelectionVersion } from './versions.js';
 import { closeLibraryModal, openLibraryModal, readBookFromStorage, readSaveInfo, renderSaveStatus, saveBookToStorage, saveWorkFile } from './storage.js';
 
 window.addEventListener('DOMContentLoaded', async () => {
@@ -81,15 +80,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  const pcModal = document.getElementById('prompt-context-modal');
-  if (pcModal) {
-    pcModal.addEventListener('click', (e) => {
-      if (e.target === pcModal) {
-        closePromptContextModal();
-      }
-    });
-  }
-
   // Esc: chiude prima la finestra di dialogo, poi una sola finestra alla volta (la più in primo piano)
   const escapeClosers = [
     ['export-modal', closeExportDialog],
@@ -106,11 +96,18 @@ window.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     const open = escapeClosers.find(([id]) => document.getElementById(id)?.classList.contains('open'));
-    if (open) open[1]();
+    if (open) {
+      open[1]();
+      return;
+    }
+    const guide = document.getElementById('dropzone-banner');
+    if (guide && guide.style.display !== 'none' && state.BLOCKS_DATA.length > 0) {
+      hideStartGuide();
+    }
   });
 
   // Clic fuori dalla finestra = chiudi (per la finestra di dialogo = annulla)
-  [['export-modal', closeExportDialog], ['library-modal', closeLibraryModal], ['dialog-modal', cancelDialog]]
+  [['export-modal', closeExportDialog], ['library-modal', closeLibraryModal], ['prompt-context-modal', closePromptContextModal], ['help-modal', closeHelpModal], ['dialog-modal', cancelDialog]]
     .forEach(([id, close]) => {
       const modal = document.getElementById(id);
       if (modal) {
@@ -175,7 +172,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 // Funzioni richiamate dagli attributi onclick/onchange di index.html e dall'HTML generato
 Object.assign(window, {
   applyEditorChanges,
-  applySelectionVersion,
   closeExportDialog,
   closeHelpModal,
   closeLibraryModal,
@@ -186,7 +182,6 @@ Object.assign(window, {
   copyCurrentPromptContextText,
   copyNextBlockCommand,
   copyStartInstructions,
-  deleteSelectionVersion,
   deselectAll,
   downloadBothPromptAndContext,
   downloadCurrentEditorFile,
@@ -206,7 +201,6 @@ Object.assign(window, {
   openStartGuide,
   revertEditorCurrentFile,
   runExport,
-  saveSelectionVersion,
   saveWorkFile,
   selectAll,
   selectEssentialBes,

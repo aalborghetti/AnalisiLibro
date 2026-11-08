@@ -69,7 +69,7 @@ L'intero workflow è progettato per essere eseguito **senza installare alcun sof
 flowchart TD
     A["1. Carica il libro (EPUB/PDF/TXT) + contesto_didattico.md come fonti di un taccuino NotebookLM"] --> B["2. Incolla nella chat del taccuino il prompt operativo da prompt.md"]
     B --> C["3. L'AI genera Fase 1 (dati_libro.md + Mappatura) e il Blocco 1, poi procede blocco per blocco"]
-    C --> D["4. Salva ogni file prodotto dall'AI (.md) e importalo nell'app con 📂 Importa schede"]
+    C --> D["4. Salva ogni file prodotto dall'AI (.md) e aprilo nell'app da 📚 I miei libri o trascinandolo"]
     D --> E["5. Scegli gli esercizi (anche per BES/DSA), salva il lavoro e usa 🖨️ Stampa o scarica"]
 ```
 
@@ -78,7 +78,7 @@ flowchart TD
 ## 🤖 1. Generazione delle Schede con l'AI (NotebookLM)
 
 > [!TIP]
-> All'apertura l'app mostra una **guida rapida in 4 passi** (riapribile in ogni momento con il pulsante **`?`**) con i link e i pulsanti per ciascun passaggio. Dalla guida si possono anche aprire le **schede pronte** pubblicate nella cartella `schede/`.
+> All'apertura l'app mostra le **istruzioni per l'AI** (riapribili in ogni momento con il pulsante **`?`**) per copiare il prompt e scaricare le linee guida. Dalla stessa sezione si possono anche aprire le **schede pronte** pubblicate nella cartella `schede/`.
 
 Il sistema separa nettamente la **metodologia pedagogica** (`contesto_didattico.md`, caricata come fonte di conoscenza) dal **comando esecutivo e sintattico** (`prompt.md`, inviato nella chat):
 
@@ -87,29 +87,29 @@ Il sistema separa nettamente la **metodologia pedagogica** (`contesto_didattico.
    - Il file del romanzo da analizzare in formato **EPUB**, **PDF**, **Doc** o **TXT**.
    - Il file [`contesto_didattico.md`](contesto_didattico.md) (trascinalo come file o incollalo come fonte).
 3. **Copia e Invia il Prompt:**
-   - Apri [`prompt.md`](prompt.md) (oppure, nell'app, usa il passo 3 della guida rapida o **`🤖 Istruzioni per l'AI`** → **`📋 Copia il testo`**).
+   - Apri [`prompt.md`](prompt.md) (oppure, nell'app, usa la sezione **`?`** → **`📋 Copia il testo`**).
    - Incolla il prompt nella chat del taccuino.
 4. **Generazione Progressiva (Anti-Troncamento):**
    - **Primo passo:** L'AI genera la scheda anagrafica del libro (`dati_libro.md`) con il Piano delle Unità Didattiche (capitoli, nucleo tematico e attività speciale assegnata a ogni blocco) e la scheda integrale del **Blocco 1**, fermandosi al termine.
    - **Passi successivi:** Invia il comando *"Procedi con il Blocco successivo"* per far generare all'AI ciascun blocco seguente uno alla volta con il massimo livello di approfondimento, evitando tagli dovuti ai limiti di lunghezza dell'output.
 5. **Importazione nell'app:**
    - Ogni file prodotto dall'AI è delimitato dalle righe `[[FILE: nome.md]]` e `[[FINE]]`, che ne indicano il nome (`dati_libro.md`, `blocco_01_esercizi.md`, …).
-   - Il docente salva ogni file come `.md` con quel nome e lo importa con **`📂 Importa schede`** (o trascinandolo nella pagina). Se il libro è già aperto, l'app chiede se **aggiungere** le schede a quel libro o aprirle come **nuovo libro**; le schede con lo stesso nome vengono sostituite dopo conferma.
+   - Il docente salva ogni file come `.md` con quel nome e lo apre tramite **`📚 I miei libri`** (o trascinandolo nella pagina). Se il libro è già aperto, l'app chiede se **aggiungere** le schede a quel libro o aprirle come **nuovo libro**; le schede con lo stesso nome vengono sostituite dopo conferma.
    - Se un file contiene più schede (per esempio la prima risposta dell'AI, con i dati del libro e il Blocco 1, salvata in un unico file), l'app lo divide da sola usando le righe `[[FILE: …]]` o, in loro assenza, i titoli `# Dati del Libro` e `# SCHEDA DIDATTICA`. Le righe speciali vengono tolte dal testo importato.
 
 ### 📐 Struttura Pedagogica di Ciascuna Scheda
 Ciascuna unità didattica generata rispetta una precisa architettura pedagogica e tipografica:
-- **Intestazione studente:** Nome, Cognome, Classe, Data e citazione motivazionale dal testo.
+- **Citazione introduttiva:** citazione motivazionale o messaggio di benvenuto nei capitoli del blocco (senza righe di compilazione o intestazione studente: le attività si svolgono sul quaderno).
 - **`## 1. Comprensione del Testo`:**
-  - `### A. Domande a risposta aperta`: 5 domande non mnemoniche su cause-effetto, scelte etiche ed emozioni dei personaggi, ciascuna con righe di risposta `____`.
-  - `### B. Vero o Falso?`: 5 affermazioni sottili in tabella con righe sottostanti dedicate alla correzione e motivazione dei falsi.
+  - `### A. Domande a risposta aperta`: 5 domande non mnemoniche su cause-effetto, scelte etiche ed emozioni dei personaggi, formulate chiaramente per svolgimento sul quaderno (senza righe di compilazione).
+  - `### B. Vero o Falso?`: 5 affermazioni sottili in tabella con colonne pulite per Vero e Falso (senza caselle `[ ]`, basta la cornice della tabella) e correzione/motivazione dei falsi sul quaderno.
   - Nell'app le parti A e B sono due esercizi selezionabili separatamente.
 - **`## 2. Analisi dei Personaggi e Riflessione`:**
-  - 2 domande di approfondimento psicologico sui conflitti interiori, sui dilemmi etici e sull'evoluzione morale dei protagonisti.
+  - 2 domande di approfondimento psicologico sui conflitti interiori, sui dilemmi etici e sull'evoluzione morale dei protagonisti da svolgere sul quaderno.
 - **`## 3. Officina di Scrittura Creativa ed Empatia`:**
-  - Attività di scrittura in prima persona (*pagina di diario, monologo interiore, lettera*) con spazio di scrittura esteso.
+  - Attività di scrittura in prima persona (*pagina di diario, monologo interiore, lettera*) per il quaderno.
 - **`## 4. Laboratorio Lessicale e Modi di Dire`:**
-  - Tabella con 5 vocaboli complessi o espressioni d'autore con caselle di abbinamento `[  ]` e definizioni contestuali sempre mescolate.
+  - Tabella con 5 vocaboli complessi o espressioni d'autore con colonna di abbinamento a cella vuota (senza `[ ]`) e definizioni contestuali sempre mescolate.
 - **`## 5. Attività Speciale "Fuori dagli Schemi"`:**
   - Attività laboratoriale assegnata a rotazione nel Piano delle Unità Didattiche (mappa topografica, processo simulato/debate, dossier investigativo, redazione giornalistica, taccuino naturalistico/storico, simbologia): tutte le sei tipologie prima di ripeterne una, mai la stessa in due blocchi consecutivi. Eventuale box grafico `[SPAZIO PER IL TUO DISEGNO / RILIEVO GRAFICO]`.
 - **`### GUIDA E RIASSUNTO PER IL DOCENTE`:**
@@ -119,12 +119,11 @@ Ciascuna unità didattica generata rispetta una precisa architettura pedagogica 
 
 ## 💻 2. Visualizzazione, Editing, Inclusione (DSA/BES) e Stampa Web (`index.html`)
 
-L'applicazione web [`index.html`](index.html) è **100% client-side** e va usata dal sito pubblicato (GitHub Pages o qualsiasi hosting statico): aperta con doppio clic dal computer (`file://`) mostra un avviso, perché i browser non caricano i moduli JavaScript da disco. Per provarla in locale basta un server web statico nella cartella del progetto, ad esempio `python -m http.server`, e poi http://localhost:8000. L'header contiene solo sei comandi: **`📂 Importa schede`**, **`📚 I miei libri`**, **`💾 Salva lavoro`**, **`🖨️ Stampa o scarica`**, **`🤖 Istruzioni per l'AI`** e **`?`** (guida rapida).
+L'applicazione web [`index.html`](index.html) è **100% client-side** e va usata dal sito pubblicato (GitHub Pages o qualsiasi hosting statico): aperta con doppio clic dal computer (`file://`) mostra un avviso, perché i browser non caricano i moduli JavaScript da disco. Per provarla in locale basta un server web statico nella cartella del progetto, ad esempio `python -m http.server`, e poi http://localhost:8000. L'header contiene i comandi principali: **`📚 I miei libri`**, **`💾 Salva lavoro`**, **`🖨️ Stampa o scarica`** e **`?`** (istruzioni per l'AI).
 
 ### Caratteristiche Principali:
 1. **Caricamento Flessibile:**
-   - **Importa schede:** **`📂 Importa schede`** apre i file `.md` salvati dalle risposte dell'AI o un file di lavoro `.zip`. Con un libro aperto, le schede `.md` si possono **aggiungere al libro** (la scelta proposta quando il titolo coincide) o aprire come **nuovo libro**; un'importazione parziale non sovrascrive mai un libro più completo già salvato.
-   - **I miei libri:** apre un libro salvato nel browser, una **scheda pronta** della cartella `schede/`, un file di lavoro `.zip`, singole schede `.md` o una cartella; file e cartelle si possono anche trascinare nella pagina. Se la selezione contiene file `blocco_XX…`, vengono caricati solo questi e `dati_libro.md`; in ogni caso sono ignorati `README.md`, `prompt.md`, `contesto_didattico.md` e i nomi duplicati.
+   - **I miei libri:** apre un libro salvato nel browser, una **scheda pronta** della cartella `schede/`, un file di lavoro `.zip`, singole schede `.md` o una cartella; file e cartelle si possono anche trascinare nella pagina. Con un libro aperto, le schede `.md` si possono **aggiungere al libro** (la scelta proposta quando il titolo coincide) o aprire come **nuovo libro**; un'importazione parziale non sovrascrive mai un libro più completo già salvato. Se la selezione contiene file `blocco_XX…`, vengono caricati solo questi e `dati_libro.md`; in ogni caso sono ignorati `README.md`, `prompt.md`, `contesto_didattico.md` e i nomi duplicati.
    - **Automatico all'avvio:** se il sito contiene la cartella `schede_esercizi/`, l'app la carica all'avvio. Se nel browser ci sono modifiche locali non pubblicate, l'app chiede con due pulsanti espliciti quale versione usare invece di sovrascriverle.
    - **Creazione da zero:** **`✏️ Scrivi una scheda da zero`** apre l'editor con il modello standard.
    - Il titolo del libro viene letto da `dati_libro.md` o, in sua assenza, dal sottotitolo `## *Titolo* di Autore` delle schede.
@@ -136,7 +135,6 @@ L'applicazione web [`index.html`](index.html) è **100% client-side** e va usata
 
 3. **Didattica Inclusiva (BES e Alta Leggibilità DSA):**
    - **`🎯 Selezione Essenziale (BES)`:** Pulsante rapido nella barra di selezione che attiva automaticamente le sole sezioni di *Comprensione (domande aperte)*, *Vero/Falso* e *Laboratorio Lessicale* per verifiche o schede a carico cognitivo ridotto. Come **`Seleziona Tutti`** e **`Deseleziona Tutti`**, con più blocchi chiede se applicare la scelta solo al blocco aperto o a tutto il libro. Ogni esercizio resta poi selezionabile o deselezionabile singolarmente.
-   - **`📌 Versioni salvate`:** le scelte degli esercizi di tutti i blocchi si salvano con un nome (es. «2B completa», «Versione BES») e si richiamano dal menu *Versione*; sono incluse nel file di **`💾 Salva lavoro`**.
    - **`🔤 Alta Leggibilità (DSA)`:** casella della finestra **`🖨️ Stampa o scarica`** (e pulsante nell'anteprima) che trasforma l'impaginazione secondo i criteri di alta leggibilità (font sans-serif `Plus Jakarta Sans` maggiorato a `12.5pt`, rimozione totale del corsivo, interlinea e spaziatura espanse, righe di scrittura più alte per alunni con disgrafia). Vale sia per stampa/PDF sia per Word (Verdana 12,5 pt, senza corsivi, interlinea 1,5) e viene ricordata tra una sessione e l'altra.
 
 4. **Editor con anteprima (`✏️ Modifica il testo di questa scheda`):**
@@ -155,11 +153,11 @@ L'applicazione web [`index.html`](index.html) è **100% client-side** e va usata
 6. **Esportazione DOCX Nativa (Microsoft Word & Google Documenti):**
    - **100% Client-Side:** I file `.docx` (standard Microsoft Word OpenXML) vengono generati direttamente nel browser tramite [`jszip.min.js`](jszip.min.js) senza transitare su server esterni e a costo zero.
    - **Editing su Google Drive:** Basta scaricare il file `.docx`, trascinarlo sul proprio **Google Drive** e aprirlo con **Google Documenti** per editarlo, personalizzarlo, assegnarlo su **Google Classroom** o condividerlo con colleghi.
-   - **Formattazione Preservata:** Tabelle Vero/Falso e di abbinamento diventano tabelle Word con colonne proporzionate, le righe di scrittura diventano paragrafi con bordo tratteggiato e gli spazi per il disegno diventano riquadri: tutto resta liberamente modificabile. Le caselle `[ ]` restano caratteri di testo.
+   - **Formattazione Preservata:** Tabelle Vero/Falso e di abbinamento diventano tabelle Word con colonne proporzionate e gli spazi per il disegno diventano riquadri: tutto resta liberamente modificabile.
 
 7. **Istruzioni per l'AI e aiuto:**
-   - **`🤖 Istruzioni per l'AI`** consente di consultare, copiare o scaricare le istruzioni (`prompt.md`) e le linee guida didattiche (`contesto_didattico.md`).
-   - Il pulsante **`?`** riapre la guida rapida; da lì **`📖 Guida e domande frequenti`** mostra [`GUIDA_DOCENTI.md`](GUIDA_DOCENTI.md) (con il manuale tecnico in una seconda scheda).
+   - Il pulsante **`?`** mostra in qualsiasi momento le istruzioni (`prompt.md`) e le linee guida didattiche (`contesto_didattico.md`), con i pulsanti per copiare il testo e scaricare i file.
+   - Da lì **`📖 Guida e domande frequenti`** apre [`GUIDA_DOCENTI.md`](GUIDA_DOCENTI.md) (con il manuale tecnico in una seconda scheda).
    - Le conferme usano finestre dell'app con pulsanti che dicono esattamente cosa succede (es. «Salva ed esci» / «Esci senza salvare»); avvisi ed errori importanti restano visibili finché non vengono chiusi.
 
 ---

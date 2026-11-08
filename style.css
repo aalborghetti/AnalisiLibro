@@ -1041,19 +1041,6 @@ header {
   break-after: avoid !important;
 }
 
-.student-fields {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
-  gap: 1rem;
-  margin-top: 1rem;
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 0.9rem;
-}
-
-.student-field-line {
-  border-bottom: 1px dotted #333;
-  padding-bottom: 2px;
-}
 
 .doc-title {
   font-size: 1.5rem;
@@ -1932,7 +1919,7 @@ body.is-printing .modal-body {
 }
 
 /* ============================================================
-   HEADER SEMPLIFICATO, STAMPA O SCARICA, VERSIONI, I MIEI LIBRI,
+   HEADER SEMPLIFICATO, STAMPA O SCARICA, I MIEI LIBRI,
    FINESTRA DI DIALOGO E AVVISI
    ============================================================ */
 
@@ -2093,34 +2080,6 @@ body.is-printing .modal-body {
   font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
-/* Barra delle versioni salvate (sotto la selezione degli esercizi) */
-.selection-toolbar {
-  flex-wrap: wrap;
-  row-gap: 0.6rem;
-}
-
-.versions-bar {
-  flex-basis: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  padding-top: 0.6rem;
-  border-top: 1px dashed var(--border);
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: #475569;
-}
-
-.version-select {
-  min-width: 200px;
-  padding: 0.35rem 0.5rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  background: #ffffff;
-  font-family: inherit;
-  font-size: 0.84rem;
-}
 
 /* I miei libri */
 .library-section h4 {

@@ -17,9 +17,9 @@ export function showEmptyState() {
   const grid = document.getElementById('exercises-grid');
   if (grid) grid.style.display = 'none';
   const list = document.getElementById('blocks-list');
-  if (list) list.innerHTML = '<div style="padding: 1.5rem 1rem; color: #94a3b8; font-size: 0.85rem; text-align: center;">Nessuna scheda ancora.<br>Segui i passaggi della guida per crearle.</div>';
+  if (list) list.innerHTML = '<div style="padding: 1.5rem 1rem; color: #94a3b8; font-size: 0.85rem; text-align: center;">Nessun libro aperto.<br>Apri un libro da «📚 I miei libri» o usa le istruzioni per l\'AI.</div>';
   document.getElementById('app-book-title').textContent = "Generatore Schede Didattiche & PDF";
-  document.getElementById('app-book-subtitle').textContent = "Segui i 4 passaggi per creare le schede del tuo libro";
+  document.getElementById('app-book-subtitle').textContent = "Istruzioni per l'AI e creazione schede didattiche";
   document.getElementById('blocks-count-badge').textContent = "0 Unità";
   const closeBtn = document.getElementById('start-guide-close');
   if (closeBtn) closeBtn.style.display = 'none';

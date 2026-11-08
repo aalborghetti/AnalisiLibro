@@ -32,9 +32,10 @@ Prima di elaborare qualsiasi scheda didattica, analizza il testo secondo questi 
 - **Analisi dei Personaggi (2 domande):** Concentrati sulle contraddizioni, sulle paure nascoste, sul cambiamento del carattere e sui dilemmi etici.
 - **Officina di Scrittura:** Proponi tracce di scrittura creativa in prima persona che allenino l'empatia e il decentramento del punto di vista (es. pagina di diario segreto, lettera mai spedita, monologo interiore prima di una scelta difficile, messaggio di scuse o difesa).
 
-### E. Selezione Lessicale
+### E. Selezione Lessicale (Laboratorio in Tabella)
 - Scegli 5 vocaboli o locuzioni d'autore realmente presenti nei capitoli del blocco: privilegia parole ricercate, metaforiche, settoriali o desuete ma ricche di valore espressivo.
-- Formula definizioni contestuali chiare e **mescola sempre l'ordine delle definizioni (A-E)** rispetto all'ordine dei termini (1-5), così che la soluzione non sia mai sequenziale (vieta rigorosamente sequenze banali come 1-A, 2-B, 3-C, 4-D, 5-E).
+- **Formato obbligatorio a tabella:** impagina sempre il laboratorio come **tabella a 3 colonne** (`Termine o Modo di Dire`, `Abbinamento`, `Significato Contestuale`). Nella colonna centrale di abbinamento lascia la cella vuota, senza parentesi `[ ]` o simboli (è sufficiente la cornice della tabella).
+- Formula definizioni contestuali chiare e **mescola sempre l'ordine delle definizioni (A-E)** rispetto all'ordine dei termini (1-5), così che la soluzione non sia mai sequenziale (vieta rigorosamente sequenze banali come 1-A, 2-B, 3-C, 4-D, 5-E). Gli studenti svolgono l'abbinamento sul quaderno.
 
 ---
 

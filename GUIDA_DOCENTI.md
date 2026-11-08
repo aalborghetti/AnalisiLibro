@@ -7,13 +7,13 @@ Questo strumento ti aiuta a preparare schede didattiche di lettura per la scuola
 ## 1. Creare le schede di un libro
 
 1. **Apri NotebookLM** (serve un account Google) e crea un nuovo taccuino.
-2. **Aggiungi due fonti al taccuino:** il file del libro (EPUB, PDF o TXT) e il file delle *linee guida didattiche*, che scarichi dal passo 2 della guida rapida.
-3. **Copia le istruzioni** con il pulsante del passo 3, incollale nella chat del taccuino e invia.
-4. **Salva e importa le schede:** NotebookLM indica il nome di ogni file nella riga *[[FILE: …]]* (per esempio *blocco_01_esercizi.md*). Salva ogni file con quel nome e con estensione `.md`, poi importalo con **📂 Importa schede** oppure trascinalo nella pagina. Se il libro è già aperto, scegli **➕ Aggiungi al libro aperto**. Se salvi la prima risposta (dati del libro e Blocco 1) in un unico file, l'app la divide da sola.
-5. **Chiedi il blocco successivo:** scrivi a NotebookLM *«Procedi con il Blocco successivo»* (puoi copiare la frase dal passo 4) e ripeti il passo 4 per ogni blocco, fino alla fine del libro.
+2. **Aggiungi due fonti al taccuino:** il file del libro (EPUB, PDF o TXT) e il file delle *linee guida didattiche* (`contesto_didattico.md`), che scarichi dalla sezione **?** (Istruzioni per l'AI).
+3. **Copia le istruzioni:** clicca **📋 Copia il testo** nella sezione **?**, incollale nella chat del taccuino e invia.
+4. **Salva e carica le schede:** NotebookLM indica il nome di ogni file nella riga *[[FILE: …]]* (per esempio *blocco_01_esercizi.md*). Salva ogni file con quel nome e con estensione `.md`, poi aprilo tramite **📚 I miei libri** oppure trascinalo nella pagina. Se il libro è già aperto, scegli **➕ Aggiungi al libro aperto**. Se salvi la prima risposta (dati del libro e Blocco 1) in un unico file, l'app la divide da sola.
+5. **Chiedi il blocco successivo:** scrivi a NotebookLM *«Procedi con il Blocco successivo»* e ripeti il passo 4 per ogni blocco, fino alla fine del libro.
 
 > [!TIP]
-> Il pulsante **?** in alto a destra riapre in qualsiasi momento la guida rapida con i quattro passaggi.
+> Il pulsante **?** in alto a destra mostra in qualsiasi momento le **istruzioni per l'AI** (prompt operativo da copiare e linee guida didattiche da scaricare per NotebookLM).
 
 ---
 
@@ -21,7 +21,6 @@ Questo strumento ti aiuta a preparare schede didattiche di lettura per la scuola
 
 - Nella colonna di sinistra trovi i **blocchi** del libro: clicca su un blocco per vederne gli esercizi.
 - Spunta gli esercizi da includere nella scheda per gli studenti: le scelte vengono ricordate anche riaprendo l'app. **🎯 Selezione Essenziale (BES)** sceglie in un clic le domande aperte, il Vero/Falso e il lessico; **Seleziona Tutti** e **Deseleziona Tutti** scelgono o tolgono tutti gli esercizi. Per tutti e tre l'app chiede se applicare la scelta solo al blocco aperto o a tutto il libro.
-- **📌 Versioni:** dopo aver scelto gli esercizi puoi salvarli con un nome (per esempio «2B completa» o «Versione BES») con **💾 Salva le scelte come versione**. La versione vale per tutti i blocchi e si richiama dal menu *Versione*.
 - Per correggere o arricchire una scheda usa **✏️ Modifica il testo di questa scheda**, poi **✅ Salva modifiche**.
 
 ---
@@ -49,7 +48,7 @@ La casella **🔤 Alta leggibilità (DSA)** usa un carattere più grande, toglie
 ## 5. Domande frequenti
 
 ### La risposta dell'AI si è interrotta a metà o una scheda è incompleta
-Le risposte molto lunghe a volte vengono troncate. Scrivi a NotebookLM *«La scheda del Blocco 3 si è interrotta: rigenerala completa»*, salva di nuovo il file e importalo con **📂 Importa schede**: l'app ti chiederà se sostituire la scheda incompleta.
+Le risposte molto lunghe a volte vengono troncate. Scrivi a NotebookLM *«La scheda del Blocco 3 si è interrotta: rigenerala completa»*, salva di nuovo il file e aprilo da **📚 I miei libri** (oppure trascinalo nella pagina): l'app ti chiederà se sostituire la scheda incompleta.
 
 ### Ho importato un file ma non è comparsa nessuna scheda
 Controlla che il file contenga **tutta** la risposta, dall'inizio alla fine, e che sia salvato con estensione `.md` (per esempio *blocco_02_esercizi.md*, non *blocco_02_esercizi.md.txt*). Il nome del file deve essere quello indicato dall'AI nella riga *[[FILE: …]]*.

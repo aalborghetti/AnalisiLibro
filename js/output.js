@@ -108,11 +108,6 @@ export function buildStudentBlockHtml(block) {
     <div class="student-doc-header">
       <div class="doc-title">SCHEDA DIDATTICA DI LETTURA</div>
       <div class="doc-subtitle">${escapeHtml(state.globalBookTitle)} — ${escapeHtml(block.title)}</div>
-      <div class="student-fields">
-        <div class="student-field-line"><strong>Nome e Cognome:</strong> ____________________________________</div>
-        <div class="student-field-line"><strong>Classe:</strong> ____________</div>
-        <div class="student-field-line"><strong>Data:</strong> ____________</div>
-      </div>
     </div>
 
     ${block.welcomeNote ? `<div class="doc-welcome">${escapeHtml(block.welcomeNote).replace(/\n/g, '<br>')}</div>` : ''}

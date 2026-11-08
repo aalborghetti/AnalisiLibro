@@ -45,12 +45,21 @@ test('il template di prompt.md produce i 6 esercizi attesi', () => {
   assert.ok(block.welcomeNote.length > 0);
 });
 
-test('righe di scrittura raggruppate con la domanda e caselle di abbinamento riconosciute', () => {
+test('impaginazione per quaderno e supporto retrocompatibile righe di scrittura / caselle', () => {
   const block = parseWorksheetMarkdown('blocco_01_esercizi.md', splitMarkedFiles(response)[1].markdown);
-  assert.match(block.exercises[0].contentHtml,
-    /<div class="doc-question">[\s\S]*?<div class="write-lines">(<div class="write-line"><\/div>){3}<\/div><\/div>/);
+  // Il nuovo template per quaderno produce domande pulite senza righe di compilazione
+  assert.match(block.exercises[0].contentHtml, /<div class="doc-question"><p[^>]*>1\. <strong>/);
+  assert.ok(!block.exercises[0].contentHtml.includes('write-lines'), 'nessuna riga di scrittura per quaderno');
   const lexicon = block.exercises.find(e => e.type === 'lessico').contentHtml;
-  assert.equal((lexicon.match(/matching-box/g) || []).length, 5);
+  assert.equal((lexicon.match(/<td class="col-match">/g) || []).length, 5);
+
+  // Retrocompatibilità: schede pregresse con righe di scrittura e [ ] continuano a essere riconosciute
+  const legacySample = parseWorksheetMarkdown('legacy.md',
+    `## 1. Comprensione del Testo\n\n### A. Domande a risposta aperta\n\n1. **Domanda:** Testo\n\n_____\n_____\n_____\n\n## 4. Laboratorio Lessicale\n| Termine | Abbinamento | Definizione |\n| :--- | :---: | :--- |\n| A | [ ] | Def A |\n| B | [ ] | Def B |`);
+  assert.match(legacySample.exercises[0].contentHtml,
+    /<div class="doc-question">[\s\S]*?<div class="write-lines">(<div class="write-line"><\/div>){3}<\/div><\/div>/);
+  const legacyLex = legacySample.exercises.find(e => e.type === 'lessico').contentHtml;
+  assert.equal((legacyLex.match(/matching-box/g) || []).length, 2);
 });
 
 test('il titolo di sezione comune compare una sola volta', () => {

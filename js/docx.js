@@ -339,8 +339,7 @@ export async function buildDocxZipBlob(bodyXmlElements, opts = {}) {
 
 // Markdown della scheda studente di un blocco (solo esercizi selezionati)
 export function buildStudentDocxMarkdown(block, headingLevel = 2) {
-  let md = `${'#'.repeat(headingLevel)} *${state.globalBookTitle}* — ${block.title}\n`;
-  md += `**Nome e Cognome dello studente:** ________________________________________  **Classe:** ____________  **Data:** ____________\n\n`;
+  let md = `${'#'.repeat(headingLevel)} *${state.globalBookTitle}* — ${block.title}\n\n`;
   if (block.welcomeNote) {
     md += block.welcomeNote.split('\n').map(l => `> ${l}`).join('\n') + '\n\n';
   }

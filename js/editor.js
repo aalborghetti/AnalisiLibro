@@ -270,11 +270,6 @@ export function renderEditorLivePreview() {
     <div class="student-doc-header">
       <div class="doc-title">SCHEDA DIDATTICA (ANTEPRIMA LIVE)</div>
       <div class="doc-subtitle">${escapeHtml(state.globalBookTitle)} — ${escapeHtml(parsed.title)}</div>
-      <div class="student-fields">
-        <div class="student-field-line"><strong>Nome e Cognome:</strong> ____________________________________</div>
-        <div class="student-field-line"><strong>Classe:</strong> ____________</div>
-        <div class="student-field-line"><strong>Data:</strong> ____________</div>
-      </div>
     </div>
     ${parsed.welcomeNote ? `<div class="doc-welcome">${escapeHtml(parsed.welcomeNote).replace(/\n/g, '<br>')}</div>` : ''}
     <div class="doc-content">
@@ -334,11 +329,11 @@ export function insertEditorSnippet(type) {
       cursorOffset = replacement.length;
       break;
     case 'vf_table':
-      replacement = `\n\n| Affermazione | V | F |\n| :--- | :---: | :---: |\n| 1. ${selectedText || 'Prima affermazione da verificare'} | [ ] | [ ] |\n| 2. Seconda affermazione da verificare | [ ] | [ ] |\n\n**Correzione delle affermazioni false:**  \n_________________________________________________________________________________________  \n_________________________________________________________________________________________  \n`;
+      replacement = `\n\n| Affermazione | V | F |\n| :--- | :---: | :---: |\n| 1. ${selectedText || 'Prima affermazione da verificare'} | | |\n| 2. Seconda affermazione da verificare | | |\n`;
       cursorOffset = replacement.length;
       break;
     case 'match_table':
-      replacement = `\n\n| Termine o Modo di Dire | Abbinamento | Significato Contestuale |\n| :--- | :---: | :--- |\n| 1. ${selectedText || 'Primo elemento'} | [   ] | A. Definizione mescolata |\n| 2. Secondo elemento | [   ] | B. Definizione mescolata |\n`;
+      replacement = `\n\n| Termine o Modo di Dire | Abbinamento | Significato Contestuale |\n| :--- | :---: | :--- |\n| 1. ${selectedText || 'Primo elemento'} | | A. Definizione mescolata |\n| 2. Secondo elemento | | B. Definizione mescolata |\n`;
       cursorOffset = replacement.length;
       break;
     case 'lines':
@@ -424,71 +419,48 @@ export function getStarterWorksheetTemplate(blockNumber = 1) {
 ## 1. Comprensione del Testo
 
 ### A. Domande a risposta aperta
-*Rispondi in modo chiaro, argomentando le tue risposte con riferimenti al testo.*
+*Rispondi alle domande sul tuo quaderno in modo completo, motivando con riferimenti precisi al testo.*
 
 1. **Prima domanda sul testo:**  
    Formula qui una domanda aperta di comprensione o inferenza.
 
-   _________________________________________________________________________________________  
-   _________________________________________________________________________________________  
-   _________________________________________________________________________________________  
-
 2. **Seconda domanda sui dettagli:**  
    Formula qui una seconda domanda sui personaggi o sullo sviluppo degli eventi.
-
-   _________________________________________________________________________________________  
-   _________________________________________________________________________________________  
-   _________________________________________________________________________________________  
 
 ---
 
 ### B. Vero o Falso? (Attenzione ai dettagli)
-*Indica se l'affermazione è Vera [V] o Falsa [F]. Se è Falsa, correggila brevemente sulle righe sottostanti.*
+*Indica nella tabella se l'affermazione è Vera (V) o Falsa (F). Correggi e motiva sul tuo quaderno le affermazioni false.*
 
 | Affermazione | V | F |
 | :--- | :---: | :---: |
-| 1. Prima affermazione da verificare | [ ] | [ ] |
-| 2. Seconda affermazione da verificare | [ ] | [ ] |
-
-**Correzione delle affermazioni false:**  
-_________________________________________________________________________________________  
-_________________________________________________________________________________________  
-_________________________________________________________________________________________  
+| 1. Prima affermazione da verificare | | |
+| 2. Seconda affermazione da verificare | | |
 
 ---
 
 ## 2. Analisi dei Personaggi e Riflessione
-*Rifletti sulle scelte, sui sentimenti e sui comportamenti dei protagonisti.*
+*Rifletti sulle scelte, sui sentimenti e sui comportamenti dei protagonisti e rispondi sul quaderno.*
 
 1. **Analisi delle motivazioni:**  
    Quali motivi spingono i personaggi a compiere determinate scelte?
 
-   _________________________________________________________________________________________  
-   _________________________________________________________________________________________  
-   _________________________________________________________________________________________  
-
 ---
 
 ## 3. Officina di Scrittura Creativa ed Empatia
-*Mettiti nei panni di uno dei personaggi.*
+*Mettiti nei panni di uno dei protagonisti e svolgi l'attività sul tuo quaderno.*
 
 Immagina di essere uno dei protagonisti e descrivi la situazione dal tuo punto di vista in una pagina di diario o lettera.
-
-_________________________________________________________________________________________  
-_________________________________________________________________________________________  
-_________________________________________________________________________________________  
-_________________________________________________________________________________________  
-_________________________________________________________________________________________  
 
 ---
 
 ## 4. Laboratorio Lessicale e Modi di Dire
-*Associa ciascuna espressione al suo significato appropriato nel testo.*
+*Associa ciascun vocabolo o espressione al suo significato nel contesto del racconto.*
 
 | Termine o Modo di Dire | Abbinamento | Significato Contestuale |
 | :--- | :---: | :--- |
-| 1. Primo termine | [   ] | A. Definizione corrispondente al secondo termine |
-| 2. Secondo termine | [   ] | B. Definizione corrispondente al primo termine |
+| 1. Primo termine | | A. Definizione corrispondente al secondo termine |
+| 2. Secondo termine | | B. Definizione corrispondente al primo termine |
 
 ---
 

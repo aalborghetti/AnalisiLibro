@@ -168,6 +168,7 @@ export async function ensurePromptAndContextLoaded() {
       }
     } catch (_) {}
   }
+  switchPromptContextTab(currentPromptContextTab);
 }
 
 // Testo di prompt.md o contesto_didattico.md caricato all'avvio; null (con avviso) se non disponibile
@@ -278,13 +279,8 @@ export function copyNextBlockCommand() {
   copyTextToClipboard(NEXT_BLOCK_COMMAND, `📋 Copiato «${NEXT_BLOCK_COMMAND}»: incollalo nella chat del taccuino e invia.`, 'comando.txt');
 }
 
-export function openStartGuide() {
-  const guide = document.getElementById('dropzone-banner');
-  if (!guide) return;
-  guide.style.display = 'block';
-  const closeBtn = document.getElementById('start-guide-close');
-  if (closeBtn) closeBtn.style.display = state.BLOCKS_DATA.length > 0 ? '' : 'none';
-  guide.scrollIntoView({ behavior: 'smooth', block: 'start' });
+export async function openStartGuide() {
+  await openPromptContextModal();
 }
 
 export function hideStartGuide() {
