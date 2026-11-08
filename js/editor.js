@@ -4,9 +4,9 @@
 
 import { ORIGINAL_FILES_CACHE, RAW_FILES_CACHE, compareFilenames, escapeHtml, isDatiLibro, state } from './state.js';
 import { markdownToHtml, parseWorksheetMarkdown } from './markdown.js';
-import { nextFreeBlockNumber, rebuildBlocksFromCache } from './book.js';
+import { rebuildBlocksFromCache } from './book.js';
 import { downloadMarkdownFile, showNotificationToast } from './ui.js';
-import { askText, showDialog } from './dialogs.js';
+import { showDialog } from './dialogs.js';
 import { saveBookToStorage } from './storage.js';
 
 export let editorCurrentFile = null;
@@ -118,11 +118,6 @@ export function populateEditorFileSelect() {
     opt.title = filename;
     select.appendChild(opt);
   });
-
-  const newOpt = document.createElement('option');
-  newOpt.value = '__NEW_FILE__';
-  newOpt.textContent = '➕ Nuova scheda…';
-  select.appendChild(newOpt);
 }
 
 export async function loadEditorFile(filename, force = false) {
@@ -161,45 +156,7 @@ export async function loadEditorFile(filename, force = false) {
 }
 
 export async function handleEditorFileSelectChange(selectedVal) {
-  if (selectedVal !== '__NEW_FILE__') {
-    loadEditorFile(selectedVal);
-    return;
-  }
-
-  const select = document.getElementById('editor-file-select');
-  const nextNum = nextFreeBlockNumber();
-  const answer = await askText({
-    title: '➕ Nuova scheda',
-    message: 'Numero del blocco della nuova scheda. Verrà creata partendo dal modello standard, che potrai poi modificare.',
-    value: String(nextNum),
-    placeholder: 'es. 3',
-    okLabel: 'Crea la scheda'
-  });
-  const number = answer ? parseInt(answer, 10) : NaN;
-  if (!Number.isInteger(number) || number < 1) {
-    if (answer) showNotificationToast('⚠️ Scrivi un numero di blocco valido, ad esempio 3.', { type: 'warning', persistent: true });
-    select.value = editorCurrentFile;
-    return;
-  }
-
-  const cleanName = `blocco_${String(number).padStart(2, '0')}_esercizi.md`;
-  if (RAW_FILES_CACHE.has(cleanName)) {
-    showNotificationToast(`ℹ️ Il Blocco ${number} esiste già: lo apro per modificarlo.`);
-    populateEditorFileSelect();
-    loadEditorFile(cleanName);
-    return;
-  }
-
-  const starterTemplate = getStarterWorksheetTemplate(number);
-  RAW_FILES_CACHE.set(cleanName, starterTemplate);
-  if (!ORIGINAL_FILES_CACHE.has(cleanName)) {
-    ORIGINAL_FILES_CACHE.set(cleanName, starterTemplate);
-  }
-
-  populateEditorFileSelect();
-  await loadEditorFile(cleanName, true);
-  setEditorDirty(true);
-  showNotificationToast(`➕ Creata la scheda del Blocco ${number} dal modello standard: completala e premi «Salva modifiche».`);
+  loadEditorFile(selectedVal);
 }
 
 export function handleEditorInput() {
@@ -326,26 +283,6 @@ export function insertEditorSnippet(type) {
       break;
     case 'quote':
       replacement = `\n\n> ### 🌊 Titolo Citazione\n> ${selectedText || 'Inserisci qui la citazione o la frase introduttiva...'}\n`;
-      cursorOffset = replacement.length;
-      break;
-    case 'vf_table':
-      replacement = `\n\n| Affermazione | V | F |\n| :--- | :---: | :---: |\n| 1. ${selectedText || 'Prima affermazione da verificare'} | | |\n| 2. Seconda affermazione da verificare | | |\n`;
-      cursorOffset = replacement.length;
-      break;
-    case 'match_table':
-      replacement = `\n\n| Termine o Modo di Dire | Abbinamento | Significato Contestuale |\n| :--- | :---: | :--- |\n| 1. ${selectedText || 'Primo elemento'} | | A. Definizione mescolata |\n| 2. Secondo elemento | | B. Definizione mescolata |\n`;
-      cursorOffset = replacement.length;
-      break;
-    case 'lines':
-      replacement = `\n\n_________________________________________________________________________________________  \n_________________________________________________________________________________________  \n`;
-      cursorOffset = replacement.length;
-      break;
-    case 'drawing':
-      replacement = `\n\n[SPAZIO PER IL TUO DISEGNO / RILIEVO GRAFICO]\n\n`;
-      cursorOffset = replacement.length;
-      break;
-    case 'teacher_guide':
-      replacement = `\n\n---\n\n### GUIDA E RIASSUNTO PER IL DOCENTE\n\n#### Riassunto sintetico dei capitoli\nSintesi degli eventi del blocco per il docente...\n\n#### Soluzioni ed elementi chiave di correzione\n- **1. Domande aperte**: Riferimenti ai passaggi chiave del testo.\n- **2. Vero o Falso**: 1. V; 2. F (correzione...).\n- **4. Laboratorio lessicale**: 1-B; 2-A.\n`;
       cursorOffset = replacement.length;
       break;
     default:

@@ -824,13 +824,6 @@ header {
   flex-wrap: wrap;
 }
 
-.quickbar-divider {
-  width: 1px;
-  height: 20px;
-  background: #cbd5e1;
-  margin: 0 0.35rem;
-}
-
 .quick-btn {
   background: #ffffff;
   border: 1px solid #cbd5e1;

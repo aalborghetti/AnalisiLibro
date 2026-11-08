@@ -138,9 +138,9 @@ L'applicazione web [`index.html`](index.html) è **100% client-side** e va usata
    - **`🔤 Alta Leggibilità (DSA)`:** casella della finestra **`🖨️ Stampa o scarica`** (e pulsante nell'anteprima) che trasforma l'impaginazione secondo i criteri di alta leggibilità (font sans-serif `Plus Jakarta Sans` maggiorato a `12.5pt`, rimozione totale del corsivo, interlinea e spaziatura espanse, righe di scrittura più alte per alunni con disgrafia). Vale sia per stampa/PDF sia per Word (Verdana 12,5 pt, senza corsivi, interlinea 1,5) e viene ricordata tra una sessione e l'altra.
 
 4. **Editor con anteprima (`✏️ Modifica il testo di questa scheda`):**
-   - Modifica qualsiasi scheda o creane di nuove (**`➕ Nuova scheda…`**, indicando solo il numero del blocco).
-   - Anteprima affiancata con rendering tipografico A4 in tempo reale e conteggio fedele delle righe di risposta.
-   - Barra di formattazione rapida per inserire titoli, tabelle Vero/Falso, abbinamenti lessicali `[  ]`, righe di scrittura e box di disegno.
+   - Modifica qualsiasi scheda del libro aperto o i dati generali in `dati_libro.md`.
+   - Anteprima affiancata con rendering tipografico A4 in tempo reale e impaginazione per quaderno.
+   - Barra di formattazione rapida per testo (grassetto, corsivo, titoli, sottotitoli e citazioni).
    - **`✅ Salva modifiche`** (Ctrl+S), **`⬇️ Scarica questa scheda`** e **`↩️ Annulla tutte le modifiche`**; chiudendo o cambiando scheda con modifiche in sospeso l'app chiede se salvarle.
    - Le selezioni degli esercizi vengono conservate quando si salvano modifiche; gli esercizi nuovi risultano selezionati.
 
