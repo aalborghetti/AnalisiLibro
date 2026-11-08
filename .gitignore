@@ -19,6 +19,9 @@
 *.swp
 __pycache__/
 *.py[cod]
+temp/
+scripts/*
+!scripts/genera-elenco-schede.js
 
 # Sistema operativo
 .DS_Store
